@@ -350,7 +350,7 @@ void tokenize(){
     int pos = 0;
     
     char BUILT_IN_KEYWORDS[2][20] = {{"var"}};
-    char BUILT_IN_FUNCS[2][20] = {{"print"}};
+    char BUILT_IN_FUNCS[2][20] = {};
     char varChars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
     int line = 1;
     int column = 0;
@@ -560,6 +560,7 @@ void tokenize(){
                 isInclude = false;
             }
             if(isInclude){
+                
                 char res[101] = "";
                 strncpy(res, &currentChar , 1);
                 pos++;
@@ -1105,6 +1106,8 @@ int main(int argc, char* argv[]){
         //printf("Welcome to the Puffin language v. 0.0.2!\nCreated by Dizabanik\n");
         char * buffer = 0;
         long length;
+        char* ch = argv[1];
+        if(ch[strlen(ch)-1] == '')
         FILE * f = fopen (argv[1], "rb");
 
         if (f)
