@@ -1,2 +1,5 @@
-i = "Hello"
-print(i)
+i = 10.1
+
+i = "HELLO"
+
+println(i)
