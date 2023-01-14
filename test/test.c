@@ -47,7 +47,11 @@ int tokLen = 0;
 int varLen = 0;
 int argLen = 0;
 char* codes = 0;
-long double getVarVal(int pos){
+char* getVarValue(int pos, int* posP){
+    
+
+}
+long double getVarVal(int pos, int* posP){
     int bracketsRoC = 0;
     int bracketsShC = 0;
     int bracketsSqC = 0;
@@ -56,9 +60,11 @@ long double getVarVal(int pos){
     while(pos < tokLen){
         if(strcmp(tokens[pos].type, "bracket(") == 0){
             bracketsRoC++;
+            pos++;
         }
         else if(strcmp(tokens[pos].type, "bracket)") == 0){
             bracketsRoC--;
+            pos++;
         }
         else if(strcmp(tokens[pos].type, "keyword_custom") == 0){
             count ++;
@@ -77,24 +83,28 @@ long double getVarVal(int pos){
                 printf("Variable %s not found\n", tokens[pos].value);
                 break;
             }
+            pos++;
         }
         else if(strcmp(tokens[pos].type, "int") == 0 || strcmp(tokens[pos].type, "float") == 0){
             count ++;
             vals = realloc(vals, count * sizeof(valu));
             vals[count-1].val = tokens[pos].val;
             strcpy(vals[count-1].type, tokens[pos].type);
+            pos++;
         }
         else if(strcmp(tokens[pos].type, "string") == 0 || strcmp(tokens[pos].type, "char") == 0){
             count ++;
             vals = realloc(vals, count * sizeof(valu));
             strcpy(vals[count-1].value, tokens[pos].value);
             strcpy(vals[count-1].type, tokens[pos].type);
+            pos++;
         }
         else if(strcmp(tokens[pos].type, "operator") == 0){
             count ++;
             vals = realloc(vals, count * sizeof(valu));
             strncpy(vals[count-1].operatorType, tokens[pos].value, 5);
             strcpy(vals[count-1].type, tokens[pos].type);
+            pos++;
         }
         else{
             break;
@@ -114,6 +124,9 @@ long double getVarVal(int pos){
             }
         }
     }
+    if(posP != NULL){
+        *posP = pos;
+    }
 }
 bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int bracketsDepthToDelete){
     if(withKeyword){
@@ -131,7 +144,7 @@ bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int brackets
         }
     }
     char varName[50] = "";
-    strncpy(varName, tokens[pos+1].value, 101);
+    strncpy(varName, tokens[pos+1].value, 50);
     bool isEq = false;
     bool isAdd = false;
     bool isSub = false;
@@ -336,7 +349,7 @@ bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int brackets
         vars = malloc(sizeof(var));
     }
     varLen++;
-    strncpy(vars[varLen-1].name, varName, 100);
+    strncpy(vars[varLen-1].name, varName, 51);
     if(isOper){
         // if(strcmp(type, "string") == 0){
         //     vars[varLen-1].value = calloc(101, sizeof(char));
@@ -442,9 +455,9 @@ void tokenize(){
     //u8 - unsigned int 8
     //u16 - unsigned int 16
     //u32 - unsigned int 32
-    char BUILT_IN_KEYWORDS[2][20] = {{"var"}, {"s8"}, {"s16"}, {"s32"}, {"i8"}, {"i16"}, {"i32"}, {"u8"}, {"u16"}, {"u32"}};
+    char BUILT_IN_KEYWORDS[10][10] = {{"var"}, {"s8"}, {"s16"}, {"s32"}, {"i8"}, {"i16"}, {"i32"}, {"u8"}, {"u16"}, {"u32"}};
     char BUILT_IN_FUNCS[2][20] = {{"print"}, {"println"}};
-    char BUILT_IN_STATEMENTS[2][20] = {{"if"}};
+    char BUILT_IN_STATEMENTS[1][20] = {{"if"}};
     char varChars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
     int line = 1;
     int column = 0;
@@ -626,7 +639,8 @@ void tokenize(){
                     res[strlen(res)-zerosCount] = '\0';
                 }
                 if(digitsAfterDot == 0){
-                    strncat(res, '0', 1);
+                    char ze[2] = "0";
+                    strncat(res, &ze[0], 1);
                     strncpy(tokens[tokLen-1].type, "float", 8);
                     tokens[tokLen-1].val = strtold(res, NULL);
                 }
@@ -766,7 +780,7 @@ void tokenize(){
                         
                     }
                 }
-                strncpy(tokens[tokLen-1].value, res, 100);
+                strncpy(tokens[tokLen-1].value, res, 101);
                 if(isFunc){
                     tokens = realloc(tokens, (tokLen+1)*sizeof(token));
                     tokLen++;
@@ -1084,15 +1098,15 @@ bool parse(){
                                 printf("%c", vars[i].value[0]);
                                 break;
                             }
-                            else if(strcmp(vars[i].type, "bool") == 0){
-                                if(vars[i].value == true){
-                                    printf("true");
-                                }
-                                else{
-                                    printf("false");
-                                }
-                                break;
-                            }
+                            // else if(strcmp(vars[i].type, "bool") == 0){
+                            //     if(vars[i].value == true){
+                            //         printf("true");
+                            //     }
+                            //     else{
+                            //         printf("false");
+                            //     }
+                            //     break;
+                            // }
                         }
                         break;
                     }
@@ -1144,553 +1158,116 @@ bool parse(){
             argsCount++;
             arg = realloc(arg, sizeof(argument) * argsCount);
             arg[argsCount-1].isNeeded = true;
-            if(strcmp(tokens[pos+1].type, "int") == 0 || strcmp(tokens[pos+1].type, "float") == 0){
-                if(strcmp(tokens[pos+2].type, "operator") == 0){
-                    if(strcmp(tokens[pos+2].value, "==") == 0){
-                        if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                            if(tokens[pos+1].val == tokens[pos+3].val){
+            if(strcmp(tokens[pos].type, "bracket(") == 0){
+                brackets++;
+            }
+            else if(strcmp(tokens[pos].type,"bracket)") == 0){
+                brackets--;
+            }
+            if(brackets > 0){
+                if(strcmp(tokens[pos+1].type, "int") == 0 || strcmp(tokens[pos+1].type, "float") == 0){
+                    if(strcmp(tokens[pos+2].type, "operator") == 0){
+                        if(strcmp(tokens[pos+2].value, "==") == 0){
+                            if(tokens[pos+1].val == getVarVal(pos+3, &pos)){
                                 arg[argsCount-1].isTrue = true;
                             }
                             else{
                                 arg[argsCount-1].isTrue = false;
                             }
                         }
-                        else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                            if(tokens[pos+1].val == strtold(tokens[pos+3].value, NULL)){
-                                arg[argsCount-1].isTrue = true;
-                            }
-                            else{
-                                arg[argsCount-1].isTrue = false;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                            bool isV;
-                            for(int i = 0; i < varLen; i++){
-                                if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                    isV = true;
-                                    if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                        if(tokens[pos+1].val == vars[i].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                        if(tokens[pos+1].val == strtold(vars[i].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                }
-                            }
-                            if(isV == true){
-                                printf("Variable name %s not found\n", tokens[pos+3].value);
-                            }
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, "!=") == 0){
-                        if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                            if(tokens[pos+1].val == tokens[pos+3].val){
+                        else if(strcmp(tokens[pos+2].value, "!=") == 0){
+                            if(tokens[pos+1].val == getVarVal(pos+3, &pos)){
                                 arg[argsCount-1].isTrue = false;
                             }
                             else{
                                 arg[argsCount-1].isTrue = true;
                             }
                         }
-                        else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                            if(tokens[pos+1].val == strtold(tokens[pos+3].value, NULL)){
-                                arg[argsCount-1].isTrue = false;
-                            }
-                            else{
-                                arg[argsCount-1].isTrue = true;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                            bool isV;
-                            for(int i = 0; i < varLen; i++){
-                                if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                    isV = true;
-                                    if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                        if(tokens[pos+1].val == vars[i].val){
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                    }
-                                    else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                        if(tokens[pos+1].val == strtold(vars[i].value, NULL)){
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                    }
-                                }
-                            }
-                            if(isV == true){
-                                printf("Variable name %s not found\n", tokens[pos+3].value);
-                            }
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, ">") == 0){
-                        if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                            if(tokens[pos+1].val > tokens[pos+3].val){
+                        else if(strcmp(tokens[pos+2].value, ">") == 0){
+                            if(tokens[pos+1].val > getVarVal(pos+3, &pos)){
                                 arg[argsCount-1].isTrue = true;
                             }
                             else{
                                 arg[argsCount-1].isTrue = false;
                             }
                         }
-                        else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                            if(tokens[pos+1].val > strtold(tokens[pos+3].value, NULL)){
+                        else if(strcmp(tokens[pos+2].value, "<") == 0){
+                            if(tokens[pos+1].val < getVarVal(pos+3, &pos)){
                                 arg[argsCount-1].isTrue = true;
                             }
                             else{
                                 arg[argsCount-1].isTrue = false;
                             }
                         }
-                        else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                            bool isV;
-                            for(int i = 0; i < varLen; i++){
-                                if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                    isV = true;
-                                    if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                        if(tokens[pos+1].val > vars[i].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                        if(tokens[pos+1].val > strtold(vars[i].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                }
-                            }
-                            if(isV == true){
-                                printf("Variable name %s not found\n", tokens[pos+3].value);
-                            }
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, "<") == 0){
-                        if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                            if(tokens[pos+1].val < tokens[pos+3].val){
+                        else if(strcmp(tokens[pos+2].value, "<=") == 0){
+                            if(tokens[pos+1].val <= getVarVal(pos+3, &pos)){
                                 arg[argsCount-1].isTrue = true;
                             }
                             else{
                                 arg[argsCount-1].isTrue = false;
                             }
                         }
-                        else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                            if(tokens[pos+1].val < strtold(tokens[pos+3].value, NULL)){
+                        else if(strcmp(tokens[pos+2].value, ">=") == 0){
+                            if(tokens[pos+1].val >= getVarVal(pos+3, &pos)){
                                 arg[argsCount-1].isTrue = true;
                             }
                             else{
                                 arg[argsCount-1].isTrue = false;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                            bool isV;
-                            for(int i = 0; i < varLen; i++){
-                                if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                    isV = true;
-                                    if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                        if(tokens[pos+1].val < vars[i].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                        if(tokens[pos+1].val < strtold(vars[i].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                }
-                            }
-                            if(isV == true){
-                                printf("Variable name %s not found\n", tokens[pos+3].value);
-                            }
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, "<=") == 0){
-                        if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                            if(tokens[pos+1].val <= tokens[pos+3].val){
-                                arg[argsCount-1].isTrue = true;
-                            }
-                            else{
-                                arg[argsCount-1].isTrue = false;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                            if(tokens[pos+1].val <= strtold(tokens[pos+3].value, NULL)){
-                                arg[argsCount-1].isTrue = true;
-                            }
-                            else{
-                                arg[argsCount-1].isTrue = false;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                            bool isV;
-                            for(int i = 0; i < varLen; i++){
-                                if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                    isV = true;
-                                    if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                        if(tokens[pos+1].val <= vars[i].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                        if(tokens[pos+1].val <= strtold(vars[i].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                }
-                            }
-                            if(isV == true){
-                                printf("Variable name %s not found\n", tokens[pos+3].value);
-                            }
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, ">=") == 0){
-                        if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                            if(tokens[pos+1].val >= tokens[pos+3].val){
-                                arg[argsCount-1].isTrue = true;
-                            }
-                            else{
-                                arg[argsCount-1].isTrue = false;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                            if(tokens[pos+1].val >= strtold(tokens[pos+3].value, NULL)){
-                                arg[argsCount-1].isTrue = true;
-                            }
-                            else{
-                                arg[argsCount-1].isTrue = false;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                            bool isV;
-                            for(int i = 0; i < varLen; i++){
-                                if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                    isV = true;
-                                    if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                        if(tokens[pos+1].val >= vars[i].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                        if(tokens[pos+1].val >= strtold(vars[i].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                }
-                            }
-                            if(isV == true){
-                                printf("Variable name %s not found\n", tokens[pos+3].value);
                             }
                         }
                     }
                 }
-            }
-            else if(strcmp(tokens[pos+1].type, "string") == 0 || strcmp(tokens[pos+1].type, "char") == 0){
-                if(strcmp(tokens[pos+2].type, "operator") == 0){
-                    if(strcmp(tokens[pos+2].value, "==") == 0){
-                        if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                            if(strtold(tokens[pos+1].value, NULL) == tokens[pos+3].val){
+                else if(strcmp(tokens[pos+1].type, "string") == 0 || strcmp(tokens[pos+1].type, "char") == 0){
+                    if(strcmp(tokens[pos+2].type, "operator") == 0){
+                        if(strcmp(tokens[pos+2].value, "==") == 0){
+                            if(strcmp(tokens[pos+1].value, getVarValue(pos+3, &pos)) == 0){
                                 arg[argsCount-1].isTrue = true;
                             }
                             else{
                                 arg[argsCount-1].isTrue = false;
                             }
                         }
-                        else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                            if(strcmp(tokens[pos+3].value, tokens[pos+1].value) == 0){
+                        else if(strcmp(tokens[pos+2].value, "!=") == 0){
+                            if(strcmp(tokens[pos+1].value, getVarValue(pos+3, &pos)) != 0){
+                                arg[argsCount-1].isTrue = false;
+                            }
+                            else{
+                                arg[argsCount-1].isTrue = true;
+                            }
+                        }
+                        else if(strcmp(tokens[pos+2].value, ">") == 0){
+                            if(strtold(tokens[pos+1].value, NULL) > getVarVal(pos+3, &pos)){
                                 arg[argsCount-1].isTrue = true;
                             }
                             else{
                                 arg[argsCount-1].isTrue = false;
                             }
                         }
-                        else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                            bool isV;
-                            for(int i = 0; i < varLen; i++){
-                                if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                    isV = true;
-                                    if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) == vars[i].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                        if(strcmp(vars[i].value, tokens[pos+1].value) == 0){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                }
+                        else if(strcmp(tokens[pos+2].value, "<") == 0){
+                            if(strtold(tokens[pos+1].value, NULL) < getVarVal(pos+3, &pos)){
+                                arg[argsCount-1].isTrue = true;
                             }
-                            if(isV == true){
-                                printf("Variable name %s not found\n", tokens[pos+3].value);
+                            else{
+                                arg[argsCount-1].isTrue = false;
+                            }
+                        }
+                        else if(strcmp(tokens[pos+2].value, "<=") == 0){
+                            if(strtold(tokens[pos+1].value, NULL) <= getVarVal(pos+3, &pos)){
+                                arg[argsCount-1].isTrue = true;
+                            }
+                            else{
+                                arg[argsCount-1].isTrue = false;
+                            }
+                        }
+                        else if(strcmp(tokens[pos+2].value, ">=") == 0){
+                            if(strtold(tokens[pos+1].value, NULL) >= getVarVal(pos+3, &pos)){
+                                arg[argsCount-1].isTrue = true;
+                            }
+                            else{
+                                arg[argsCount-1].isTrue = false;
                             }
                         }
                     }
-                    else if(strcmp(tokens[pos+2].value, "!=") == 0){
-                        if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                            if(strtold(tokens[pos+1].value, NULL) == tokens[pos+3].val){
-                                arg[argsCount-1].isTrue = false;
-                            }
-                            else{
-                                arg[argsCount-1].isTrue = true;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                            if(strcmp(tokens[pos+3].value, tokens[pos+1].value) == 0){
-                                arg[argsCount-1].isTrue = false;
-                            }
-                            else{
-                                arg[argsCount-1].isTrue = true;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                            bool isV;
-                            for(int i = 0; i < varLen; i++){
-                                if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                    isV = true;
-                                    if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) == vars[i].val){
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                    }
-                                    else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                        if(strcmp(vars[i].value, tokens[pos+1].value) == 0){
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                    }
-                                }
-                            }
-                            if(isV == true){
-                                printf("Variable name %s not found\n", tokens[pos+3].value);
-                            }
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, ">") == 0){
-                        if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                            if(strtold(tokens[pos+1].value, NULL) > tokens[pos+3].val){
-                                arg[argsCount-1].isTrue = true;
-                            }
-                            else{
-                                arg[argsCount-1].isTrue = false;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                            if(strtold(tokens[pos+1].value, NULL) > strtold(tokens[pos+3].value, NULL)){
-                                arg[argsCount-1].isTrue = true;
-                            }
-                            else{
-                                arg[argsCount-1].isTrue = false;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                            bool isV;
-                            for(int i = 0; i < varLen; i++){
-                                if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                    isV = true;
-                                    if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) > vars[i].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) > strtold(vars[i].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                }
-                            }
-                            if(isV == true){
-                                printf("Variable name %s not found\n", tokens[pos+3].value);
-                            }
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, "<") == 0){
-                        if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                            if(strtold(tokens[pos+1].value, NULL) < tokens[pos+3].val){
-                                arg[argsCount-1].isTrue = true;
-                            }
-                            else{
-                                arg[argsCount-1].isTrue = false;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                            if(strtold(tokens[pos+1].value, NULL) < strtold(tokens[pos+3].value, NULL)){
-                                arg[argsCount-1].isTrue = true;
-                            }
-                            else{
-                                arg[argsCount-1].isTrue = false;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                            bool isV;
-                            for(int i = 0; i < varLen; i++){
-                                if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                    isV = true;
-                                    if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) < vars[i].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) < strtold(vars[i].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                }
-                            }
-                            if(isV == true){
-                                printf("Variable name %s not found\n", tokens[pos+3].value);
-                            }
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, ">=") == 0){
-                        if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                            if(strtold(tokens[pos+1].value, NULL) >= tokens[pos+3].val){
-                                arg[argsCount-1].isTrue = true;
-                            }
-                            else{
-                                arg[argsCount-1].isTrue = false;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                            if(strtold(tokens[pos+1].value, NULL) >= strtold(tokens[pos+3].value, NULL)){
-                                arg[argsCount-1].isTrue = true;
-                            }
-                            else{
-                                arg[argsCount-1].isTrue = false;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                            bool isV;
-                            for(int i = 0; i < varLen; i++){
-                                if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                    isV = true;
-                                    if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) >= vars[i].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) >= strtold(vars[i].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                }
-                            }
-                            if(isV == true){
-                                printf("Variable name %s not found\n", tokens[pos+3].value);
-                            }
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, "<=") == 0){
-                        if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                            if(strtold(tokens[pos+1].value, NULL) <= tokens[pos+3].val){
-                                arg[argsCount-1].isTrue = true;
-                            }
-                            else{
-                                arg[argsCount-1].isTrue = false;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                            if(strtold(tokens[pos+1].value, NULL) <= strtold(tokens[pos+3].value, NULL)){
-                                arg[argsCount-1].isTrue = true;
-                            }
-                            else{
-                                arg[argsCount-1].isTrue = false;
-                            }
-                        }
-                        else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                            bool isV;
-                            for(int i = 0; i < varLen; i++){
-                                if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                    isV = true;
-                                    if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) <= vars[i].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) <= strtold(vars[i].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                }
-                            }
-                            if(isV == true){
-                                printf("Variable name %s not found\n", tokens[pos+3].value);
-                            }
-                        }
-                    }
-                    pos+=3;
                 }
             }
             while(brackets > 0 && tokLen > pos){
@@ -1712,279 +1289,51 @@ bool parse(){
                         if(strcmp(tokens[pos+1].type, "int") == 0 || strcmp(tokens[pos+1].type, "float") == 0){
                             if(strcmp(tokens[pos+2].type, "operator") == 0){
                                 if(strcmp(tokens[pos+2].value, "==") == 0){
-                                    if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                                        if(tokens[pos+1].val == tokens[pos+3].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
+                                    if(tokens[pos+1].val == getVarVal(pos+3, &pos)){
+                                        arg[argsCount-1].isTrue = true;
                                     }
-                                    else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                                        if(tokens[pos+1].val == strtold(tokens[pos+3].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    // if(tokens[pos+1].val == getVarVal(pos+3)){
-                                    //     arg[argsCount-1].isTrue = true;
-                                    // }
-                                    // else{
-                                    //     arg[argsCount-1].isTrue = false;
-                                    // }
-                                    else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                                        bool isV;
-                                        for(int i = 0; i < varLen; i++){
-                                            if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                                isV = true;
-                                                if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                                    if(tokens[pos+1].val == vars[i].val){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                                else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                                    if(tokens[pos+1].val == strtold(vars[i].value, NULL)){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        if(isV == true){
-                                            printf("Variable name %s not found\n", tokens[pos+3].value);
-                                        }
+                                    else{
+                                        arg[argsCount-1].isTrue = false;
                                     }
                                 }
                                 else if(strcmp(tokens[pos+2].value, "!=") == 0){
-                                    if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                                        if(tokens[pos+1].val == tokens[pos+3].val){
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = true;
-                                        }
+                                    if(tokens[pos+1].val == getVarVal(pos+3, &pos)){
+                                        arg[argsCount-1].isTrue = false;
                                     }
-                                    else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                                        if(tokens[pos+1].val == strtold(tokens[pos+3].value, NULL)){
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                    }
-                                    else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                                        bool isV;
-                                        for(int i = 0; i < varLen; i++){
-                                            if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                                isV = true;
-                                                if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                                    if(tokens[pos+1].val == vars[i].val){
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                }
-                                                else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                                    if(tokens[pos+1].val == strtold(vars[i].value, NULL)){
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        if(isV == true){
-                                            printf("Variable name %s not found\n", tokens[pos+3].value);
-                                        }
+                                    else{
+                                        arg[argsCount-1].isTrue = true;
                                     }
                                 }
                                 else if(strcmp(tokens[pos+2].value, ">") == 0){
-                                    if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                                        if(tokens[pos+1].val > tokens[pos+3].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
+                                    if(tokens[pos+1].val > getVarVal(pos+3, &pos)){
+                                        arg[argsCount-1].isTrue = true;
                                     }
-                                    else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                                        if(tokens[pos+1].val > strtold(tokens[pos+3].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                                        bool isV;
-                                        for(int i = 0; i < varLen; i++){
-                                            if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                                isV = true;
-                                                if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                                    if(tokens[pos+1].val > vars[i].val){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                                else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                                    if(tokens[pos+1].val > strtold(vars[i].value, NULL)){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        if(isV == true){
-                                            printf("Variable name %s not found\n", tokens[pos+3].value);
-                                        }
+                                    else{
+                                        arg[argsCount-1].isTrue = false;
                                     }
                                 }
                                 else if(strcmp(tokens[pos+2].value, "<") == 0){
-                                    if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                                        if(tokens[pos+1].val < tokens[pos+3].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
+                                    if(tokens[pos+1].val < getVarVal(pos+3, &pos)){
+                                        arg[argsCount-1].isTrue = true;
                                     }
-                                    else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                                        if(tokens[pos+1].val < strtold(tokens[pos+3].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                                        bool isV;
-                                        for(int i = 0; i < varLen; i++){
-                                            if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                                isV = true;
-                                                if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                                    if(tokens[pos+1].val < vars[i].val){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                                else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                                    if(tokens[pos+1].val < strtold(vars[i].value, NULL)){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        if(isV == true){
-                                            printf("Variable name %s not found\n", tokens[pos+3].value);
-                                        }
+                                    else{
+                                        arg[argsCount-1].isTrue = false;
                                     }
                                 }
                                 else if(strcmp(tokens[pos+2].value, "<=") == 0){
-                                    if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                                        if(tokens[pos+1].val <= tokens[pos+3].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
+                                    if(tokens[pos+1].val <= getVarVal(pos+3, &pos)){
+                                        arg[argsCount-1].isTrue = true;
                                     }
-                                    else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                                        if(tokens[pos+1].val <= strtold(tokens[pos+3].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                                        bool isV;
-                                        for(int i = 0; i < varLen; i++){
-                                            if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                                isV = true;
-                                                if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                                    if(tokens[pos+1].val <= vars[i].val){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                                else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                                    if(tokens[pos+1].val <= strtold(vars[i].value, NULL)){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        if(isV == true){
-                                            printf("Variable name %s not found\n", tokens[pos+3].value);
-                                        }
+                                    else{
+                                        arg[argsCount-1].isTrue = false;
                                     }
                                 }
                                 else if(strcmp(tokens[pos+2].value, ">=") == 0){
-                                    if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                                        if(tokens[pos+1].val >= tokens[pos+3].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
+                                    if(tokens[pos+1].val >= getVarVal(pos+3, &pos)){
+                                        arg[argsCount-1].isTrue = true;
                                     }
-                                    else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                                        if(tokens[pos+1].val >= strtold(tokens[pos+3].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                                        bool isV;
-                                        for(int i = 0; i < varLen; i++){
-                                            if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                                isV = true;
-                                                if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                                    if(tokens[pos+1].val >= vars[i].val){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                                else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                                    if(tokens[pos+1].val >= strtold(vars[i].value, NULL)){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        if(isV == true){
-                                            printf("Variable name %s not found\n", tokens[pos+3].value);
-                                        }
+                                    else{
+                                        arg[argsCount-1].isTrue = false;
                                     }
                                 }
                             }
@@ -1992,286 +1341,55 @@ bool parse(){
                         else if(strcmp(tokens[pos+1].type, "string") == 0 || strcmp(tokens[pos+1].type, "char") == 0){
                             if(strcmp(tokens[pos+2].type, "operator") == 0){
                                 if(strcmp(tokens[pos+2].value, "==") == 0){
-                                    if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) == tokens[pos+3].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
+                                    if(strcmp(tokens[pos+1].value, getVarValue(pos+3, &pos)) == 0){
+                                        arg[argsCount-1].isTrue = true;
                                     }
-                                    else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                                        if(strcmp(tokens[pos+3].value, tokens[pos+1].value) == 0){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                                        bool isV;
-                                        for(int i = 0; i < varLen; i++){
-                                            if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                                isV = true;
-                                                if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                                    if(strtold(tokens[pos+1].value, NULL) == vars[i].val){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                                else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                                    if(strcmp(vars[i].value, tokens[pos+1].value) == 0){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        if(isV == true){
-                                            printf("Variable name %s not found\n", tokens[pos+3].value);
-                                        }
+                                    else{
+                                        arg[argsCount-1].isTrue = false;
                                     }
                                 }
                                 else if(strcmp(tokens[pos+2].value, "!=") == 0){
-                                    if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) == tokens[pos+3].val){
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = true;
-                                        }
+                                    if(strcmp(tokens[pos+1].value, getVarValue(pos+3, &pos)) != 0){
+                                        arg[argsCount-1].isTrue = false;
                                     }
-                                    else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                                        if(strcmp(tokens[pos+3].value, tokens[pos+1].value) == 0){
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                    }
-                                    else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                                        bool isV;
-                                        for(int i = 0; i < varLen; i++){
-                                            if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                                isV = true;
-                                                if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                                    if(strtold(tokens[pos+1].value, NULL) == vars[i].val){
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                }
-                                                else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                                    if(strcmp(vars[i].value, tokens[pos+1].value) == 0){
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        if(isV == true){
-                                            printf("Variable name %s not found\n", tokens[pos+3].value);
-                                        }
+                                    else{
+                                        arg[argsCount-1].isTrue = true;
                                     }
                                 }
                                 else if(strcmp(tokens[pos+2].value, ">") == 0){
-                                    if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) > tokens[pos+3].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
+                                    if(strtold(tokens[pos+1].value, NULL) > getVarVal(pos+3, &pos)){
+                                        arg[argsCount-1].isTrue = true;
                                     }
-                                    else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) > strtold(tokens[pos+3].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                                        bool isV;
-                                        for(int i = 0; i < varLen; i++){
-                                            if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                                isV = true;
-                                                if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                                    if(strtold(tokens[pos+1].value, NULL) > vars[i].val){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                                else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                                    if(strtold(tokens[pos+1].value, NULL) > strtold(vars[i].value, NULL)){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        if(isV == true){
-                                            printf("Variable name %s not found\n", tokens[pos+3].value);
-                                        }
+                                    else{
+                                        arg[argsCount-1].isTrue = false;
                                     }
                                 }
                                 else if(strcmp(tokens[pos+2].value, "<") == 0){
-                                    if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) < tokens[pos+3].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
+                                    if(strtold(tokens[pos+1].value, NULL) < getVarVal(pos+3, &pos)){
+                                        arg[argsCount-1].isTrue = true;
                                     }
-                                    else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) < strtold(tokens[pos+3].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                                        bool isV;
-                                        for(int i = 0; i < varLen; i++){
-                                            if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                                isV = true;
-                                                if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                                    if(strtold(tokens[pos+1].value, NULL) < vars[i].val){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                                else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                                    if(strtold(tokens[pos+1].value, NULL) < strtold(vars[i].value, NULL)){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        if(isV == true){
-                                            printf("Variable name %s not found\n", tokens[pos+3].value);
-                                        }
-                                    }
-                                }
-                                else if(strcmp(tokens[pos+2].value, ">=") == 0){
-                                    if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) >= tokens[pos+3].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) >= strtold(tokens[pos+3].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                                        bool isV;
-                                        for(int i = 0; i < varLen; i++){
-                                            if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                                isV = true;
-                                                if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                                    if(strtold(tokens[pos+1].value, NULL) >= vars[i].val){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                                else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                                    if(strtold(tokens[pos+1].value, NULL) >= strtold(vars[i].value, NULL)){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        if(isV == true){
-                                            printf("Variable name %s not found\n", tokens[pos+3].value);
-                                        }
+                                    else{
+                                        arg[argsCount-1].isTrue = false;
                                     }
                                 }
                                 else if(strcmp(tokens[pos+2].value, "<=") == 0){
-                                    if(strcmp(tokens[pos+3].type, "int") == 0 || strcmp(tokens[pos+3].type, "float") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) <= tokens[pos+3].val){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
+                                    if(strtold(tokens[pos+1].value, NULL) <= getVarVal(pos+3, &pos)){
+                                        arg[argsCount-1].isTrue = true;
                                     }
-                                    else if(strcmp(tokens[pos+3].type, "string") == 0 || strcmp(tokens[pos+3].type, "char") == 0){
-                                        if(strtold(tokens[pos+1].value, NULL) <= strtold(tokens[pos+3].value, NULL)){
-                                            arg[argsCount-1].isTrue = true;
-                                        }
-                                        else{
-                                            arg[argsCount-1].isTrue = false;
-                                        }
-                                    }
-                                    else if(strcmp(tokens[pos+3].type, "keyword_custom") == 0){
-                                        bool isV;
-                                        for(int i = 0; i < varLen; i++){
-                                            if(strcmp(vars[i].name, tokens[pos+3].value) == 0){
-                                                isV = true;
-                                                if(strcmp(vars[i].type, "int") == 0 || strcmp(vars[i].type, "float") == 0){
-                                                    if(strtold(tokens[pos+1].value, NULL) <= vars[i].val){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                                else if(strcmp(vars[i].type, "string") == 0 || strcmp(vars[i].type, "char") == 0){
-                                                    if(strtold(tokens[pos+1].value, NULL) <= strtold(vars[i].value, NULL)){
-                                                        arg[argsCount-1].isTrue = true;
-                                                    }
-                                                    else{
-                                                        arg[argsCount-1].isTrue = false;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        if(isV == true){
-                                            printf("Variable name %s not found\n", tokens[pos+3].value);
-                                        }
+                                    else{
+                                        arg[argsCount-1].isTrue = false;
                                     }
                                 }
-                                pos+=3;
+                                else if(strcmp(tokens[pos+2].value, ">=") == 0){
+                                    if(strtold(tokens[pos+1].value, NULL) >= getVarVal(pos+3, &pos)){
+                                        arg[argsCount-1].isTrue = true;
+                                    }
+                                    else{
+                                        arg[argsCount-1].isTrue = false;
+                                    }
+                                }
                             }
                         }
-                    }
-                    else if(strcmp(tokens[pos].value, "||") == 0){
-                        if(tokLen <= pos+1){
-                            printf("Not enough arguments in statement after || operator\n");
-                            return false;
-                        }
-                        argsCount++;
-                        arg[argsCount-2].isNeeded = false;
                     }
                 }
                 pos++;
@@ -2336,7 +1454,7 @@ bool parse(){
                     }
                 }
             }
-            // pos++;
+            pos++;
         }
         else if(strcmp(tokens[pos].type, "bracket}") == 0){
             if(openedBracketsShaped > 0){
@@ -2514,7 +1632,7 @@ bool parse(){
                                 //     vars[index].value = calloc(1, sizeof(signed char));
                                 // }
                                 if(strcmp(vars[index2].type, "string") == 0){
-                                    strncpy(vars[index].value, vars[index2].value, 102);
+                                    strncpy(vars[index].value, vars[index2].value, 101);
                                 }
                                 else if(strcmp(vars[index2].type, "float") == 0 || strcmp(vars[index2].type, "int") == 0){
                                     vars[index].val = vars[index2].val;
