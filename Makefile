@@ -1,7 +1,10 @@
 all:
 	gcc test/test.c
+opt:
+	gcc test/test.c -Ofast
+size:
+	gcc test/test.c -Oz
 gitdev:
-	git commit -m "kawa dev0.0.1(bugs, unoptimized)"
 	git add test/test.c
-	git push -u origin main
-	git remote add origin https://github.com/Dizabanik/Kawa.git
+	git commit -m --allow-empty-message ''
+	git push -u origin main --force
