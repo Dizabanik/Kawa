@@ -156,6 +156,121 @@ long double getVarVal(int pos, int* posP, bool toZeroBrackets){
         *posP = pos;
     }
 }
+bool getValue(int pos, int* posP, valu* val){
+
+}
+
+bool getArgument(argument* arg, int posI, int* posP){
+    valu val;
+    int pos = posI;
+    getValue(pos, &pos, &val);
+    if(strcmp(val.type, "int") == 0 || strcmp(val.type, "float") == 0){
+        if(strcmp(tokens[pos+2].type, "operator") == 0){
+            if(strcmp(tokens[pos+2].value, "==") == 0){
+                if(val.val == getVarVal(pos+3, &pos, false)){
+                    arg->isTrue = true;
+                }
+                else{
+                    arg->isTrue = false;
+                }
+            }
+            else if(strcmp(tokens[pos+2].value, "!=") == 0){
+                if(val.val == getVarVal(pos+3, &pos, false)){
+                    arg->isTrue = false;
+                }
+                else{
+                    arg->isTrue = false;
+                }
+            }
+            else if(strcmp(tokens[pos+2].value, ">") == 0){
+                if(val.val > getVarVal(pos+3, &pos, false)){
+                    arg->isTrue = true;
+                }
+                else{
+                    arg->isTrue = false;
+                }
+            }
+            else if(strcmp(tokens[pos+2].value, "<") == 0){
+                if(val.val < getVarVal(pos+3, &pos, false)){
+                    arg->isTrue = true;
+                }
+                else{
+                    arg->isTrue = false;
+                }
+            }
+            else if(strcmp(tokens[pos+2].value, "<=") == 0){
+                if(val.val <= getVarVal(pos+3, &pos, false)){
+                    arg->isTrue = true;
+                }
+                else{
+                    arg->isTrue = false;
+                }
+            }
+            else if(strcmp(tokens[pos+2].value, ">=") == 0){
+                if(val.val >= getVarVal(pos+3, &pos, false)){
+                    arg->isTrue = true;
+                }
+                else{
+                    arg->isTrue = false;
+                }
+            }
+        }
+    }
+    else if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
+        if(strcmp(tokens[pos+2].type, "operator") == 0){
+            if(strcmp(tokens[pos+2].value, "==") == 0){
+                if(strcmp(val.value, getVarValue(pos+3, &pos)) == 0){
+                    arg->isTrue = true;
+                }
+                else{
+                    arg->isTrue = false;
+                }
+            }
+            else if(strcmp(tokens[pos+2].value, "!=") == 0){
+                if(strcmp(val.value, getVarValue(pos+3, &pos)) != 0){
+                    arg->isTrue = false;
+                }
+                else{
+                    arg->isTrue = true;
+                }
+            }
+            else if(strcmp(tokens[pos+2].value, ">") == 0){
+                if(strtold(val.value, NULL) > getVarVal(pos+3, &pos, false)){
+                    arg->isTrue = true;
+                }
+                else{
+                    arg->isTrue = false;
+                }
+            }
+            else if(strcmp(tokens[pos+2].value, "<") == 0){
+                if(strtold(val.value, NULL) < getVarVal(pos+3, &pos, false)){
+                    arg->isTrue = true;
+                }
+                else{
+                    arg->isTrue = false;
+                }
+            }
+            else if(strcmp(tokens[pos+2].value, "<=") == 0){
+                if(strtold(val.value, NULL) <= getVarVal(pos+3, &pos, false)){
+                    arg->isTrue = true;
+                }
+                else{
+                    arg->isTrue = false;
+                }
+            }
+            else if(strcmp(tokens[pos+2].value, ">=") == 0){
+                if(strtold(val.value, NULL) >= getVarVal(pos+3, &pos, false)){
+                    arg->isTrue = true;
+                }
+                else{
+                    arg->isTrue = false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
 bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int bracketsDepthToDelete){
     if(withKeyword){
         bool isCustomKW = false;
@@ -1105,121 +1220,16 @@ bool parse(){
                 return false;
             }
             pos+=2;
-            if(tokLen <= pos){
+            if(tokLen <= pos){  
                 printf("Statement arguments not found\n");
                 return false;
             }
             int brackets = 1;
-            int argsCount = 0;
+            int argsCount = 1;  
             argument* arg;
-            argsCount++;
-            arg = realloc(arg, sizeof(argument) * argsCount);
+            arg = malloc(sizeof(argument));
             arg[argsCount-1].isNeeded = true;
-
-            if(strcmp(tokens[pos+1].type, "int") == 0 || strcmp(tokens[pos+1].type, "float") == 0){
-                if(strcmp(tokens[pos+2].type, "operator") == 0){
-                    if(strcmp(tokens[pos+2].value, "==") == 0){
-                        if(tokens[pos+1].val == getVarVal(pos+3, &pos, false)){
-                            arg[argsCount-1].isTrue = true;
-                        }
-                        else{
-                            arg[argsCount-1].isTrue = false;
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, "!=") == 0){
-                        if(tokens[pos+1].val == getVarVal(pos+3, &pos, false)){
-                            arg[argsCount-1].isTrue = false;
-                        }
-                        else{
-                            arg[argsCount-1].isTrue = true;
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, ">") == 0){
-                        if(tokens[pos+1].val > getVarVal(pos+3, &pos, false)){
-                            arg[argsCount-1].isTrue = true;
-                        }
-                        else{
-                            arg[argsCount-1].isTrue = false;
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, "<") == 0){
-                        if(tokens[pos+1].val < getVarVal(pos+3, &pos, false)){
-                            arg[argsCount-1].isTrue = true;
-                        }
-                        else{
-                            arg[argsCount-1].isTrue = false;
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, "<=") == 0){
-                        if(tokens[pos+1].val <= getVarVal(pos+3, &pos, false)){
-                            arg[argsCount-1].isTrue = true;
-                        }
-                        else{
-                            arg[argsCount-1].isTrue = false;
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, ">=") == 0){
-                        if(tokens[pos+1].val >= getVarVal(pos+3, &pos, false)){
-                            arg[argsCount-1].isTrue = true;
-                        }
-                        else{
-                            arg[argsCount-1].isTrue = false;
-                        }
-                    }
-                }
-            }
-            else if(strcmp(tokens[pos+1].type, "string") == 0 || strcmp(tokens[pos+1].type, "char") == 0){
-                if(strcmp(tokens[pos+2].type, "operator") == 0){
-                    if(strcmp(tokens[pos+2].value, "==") == 0){
-                        if(strcmp(tokens[pos+1].value, getVarValue(pos+3, &pos)) == 0){
-                            arg[argsCount-1].isTrue = true;
-                        }
-                        else{
-                            arg[argsCount-1].isTrue = false;
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, "!=") == 0){
-                        if(strcmp(tokens[pos+1].value, getVarValue(pos+3, &pos)) != 0){
-                            arg[argsCount-1].isTrue = false;
-                        }
-                        else{
-                            arg[argsCount-1].isTrue = true;
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, ">") == 0){
-                        if(strtold(tokens[pos+1].value, NULL) > getVarVal(pos+3, &pos, false)){
-                            arg[argsCount-1].isTrue = true;
-                        }
-                        else{
-                            arg[argsCount-1].isTrue = false;
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, "<") == 0){
-                        if(strtold(tokens[pos+1].value, NULL) < getVarVal(pos+3, &pos, false)){
-                            arg[argsCount-1].isTrue = true;
-                        }
-                        else{
-                            arg[argsCount-1].isTrue = false;
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, "<=") == 0){
-                        if(strtold(tokens[pos+1].value, NULL) <= getVarVal(pos+3, &pos, false)){
-                            arg[argsCount-1].isTrue = true;
-                        }
-                        else{
-                            arg[argsCount-1].isTrue = false;
-                        }
-                    }
-                    else if(strcmp(tokens[pos+2].value, ">=") == 0){
-                        if(strtold(tokens[pos+1].value, NULL) >= getVarVal(pos+3, &pos, false)){
-                            arg[argsCount-1].isTrue = true;
-                        }
-                        else{
-                            arg[argsCount-1].isTrue = false;
-                        }
-                    }
-                }
-            }
+            getArgument(&arg[argsCount-1], pos, &pos);
 
             while(brackets > 0 && tokLen > pos){
                 if(strcmp(tokens[pos].type, "bracket(") == 0){
@@ -1237,110 +1247,17 @@ bool parse(){
                         argsCount++;
                         arg = realloc(arg, sizeof(argument) * argsCount);
                         arg[argsCount-1].isNeeded = true;
-                        if(strcmp(tokens[pos+1].type, "int") == 0 || strcmp(tokens[pos+1].type, "float") == 0){
-                            if(strcmp(tokens[pos+2].type, "operator") == 0){
-                                if(strcmp(tokens[pos+2].value, "==") == 0){
-                                    if(tokens[pos+1].val == getVarVal(pos+3, &pos, false)){
-                                        arg[argsCount-1].isTrue = true;
-                                    }
-                                    else{
-                                        arg[argsCount-1].isTrue = false;
-                                    }
-                                }
-                                else if(strcmp(tokens[pos+2].value, "!=") == 0){
-                                    if(tokens[pos+1].val == getVarVal(pos+3, &pos, false)){
-                                        arg[argsCount-1].isTrue = false;
-                                    }
-                                    else{
-                                        arg[argsCount-1].isTrue = true;
-                                    }
-                                }
-                                else if(strcmp(tokens[pos+2].value, ">") == 0){
-                                    if(tokens[pos+1].val > getVarVal(pos+3, &pos, false)){
-                                        arg[argsCount-1].isTrue = true;
-                                    }
-                                    else{
-                                        arg[argsCount-1].isTrue = false;
-                                    }
-                                }
-                                else if(strcmp(tokens[pos+2].value, "<") == 0){
-                                    if(tokens[pos+1].val < getVarVal(pos+3, &pos, false)){
-                                        arg[argsCount-1].isTrue = true;
-                                    }
-                                    else{
-                                        arg[argsCount-1].isTrue = false;
-                                    }
-                                }
-                                else if(strcmp(tokens[pos+2].value, "<=") == 0){
-                                    if(tokens[pos+1].val <= getVarVal(pos+3, &pos, false)){
-                                        arg[argsCount-1].isTrue = true;
-                                    }
-                                    else{
-                                        arg[argsCount-1].isTrue = false;
-                                    }
-                                }
-                                else if(strcmp(tokens[pos+2].value, ">=") == 0){
-                                    if(tokens[pos+1].val >= getVarVal(pos+3, &pos, false)){
-                                        arg[argsCount-1].isTrue = true;
-                                    }
-                                    else{
-                                        arg[argsCount-1].isTrue = false;
-                                    }
-                                }
-                            }
+                        getArgument(&arg[argsCount-1], pos, &pos);
+                    }
+                    else if(strcmp(tokens[pos].value, "||") == 0){
+                        if(tokLen <= pos+1){
+                            printf("Not enough arguments in statement after || operator\n");
+                            return false;
                         }
-                        else if(strcmp(tokens[pos+1].type, "string") == 0 || strcmp(tokens[pos+1].type, "char") == 0){
-                            if(strcmp(tokens[pos+2].type, "operator") == 0){
-                                if(strcmp(tokens[pos+2].value, "==") == 0){
-                                    if(strcmp(tokens[pos+1].value, getVarValue(pos+3, &pos)) == 0){
-                                        arg[argsCount-1].isTrue = true;
-                                    }
-                                    else{
-                                        arg[argsCount-1].isTrue = false;
-                                    }
-                                }
-                                else if(strcmp(tokens[pos+2].value, "!=") == 0){
-                                    if(strcmp(tokens[pos+1].value, getVarValue(pos+3, &pos)) != 0){
-                                        arg[argsCount-1].isTrue = false;
-                                    }
-                                    else{
-                                        arg[argsCount-1].isTrue = true;
-                                    }
-                                }
-                                else if(strcmp(tokens[pos+2].value, ">") == 0){
-                                    if(strtold(tokens[pos+1].value, NULL) > getVarVal(pos+3, &pos, false)){
-                                        arg[argsCount-1].isTrue = true;
-                                    }
-                                    else{
-                                        arg[argsCount-1].isTrue = false;
-                                    }
-                                }
-                                else if(strcmp(tokens[pos+2].value, "<") == 0){
-                                    if(strtold(tokens[pos+1].value, NULL) < getVarVal(pos+3, &pos, false)){
-                                        arg[argsCount-1].isTrue = true;
-                                    }
-                                    else{
-                                        arg[argsCount-1].isTrue = false;
-                                    }
-                                }
-                                else if(strcmp(tokens[pos+2].value, "<=") == 0){
-                                    if(strtold(tokens[pos+1].value, NULL) <= getVarVal(pos+3, &pos, false)){
-                                        arg[argsCount-1].isTrue = true;
-                                    }
-                                    else{
-                                        arg[argsCount-1].isTrue = false;
-                                    }
-                                }
-                                else if(strcmp(tokens[pos+2].value, ">=") == 0){
-                                    if(strtold(tokens[pos+1].value, NULL) >= getVarVal(pos+3, &pos, false)){
-                                        arg[argsCount-1].isTrue = true;
-                                    }
-                                    else{
-                                        arg[argsCount-1].isTrue = false;
-                                    }
-                                }
-                            }
-                        }
+                        argsCount++;
+                        arg = realloc(arg, sizeof(argument) * argsCount);
+                        arg[argsCount-1].isNeeded = false;
+                        getArgument(&arg[argsCount-1], pos, &pos);
                     }
                 }
                 pos++;
