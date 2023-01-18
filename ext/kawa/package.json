@@ -1,0 +1,25 @@
+{
+  "name": "kawa",
+  "displayName": "Kawa",
+  "description": "Kawa Programming Language syntax hightlightning",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "kawa",
+      "aliases": ["Kawa", "kawa"],
+      "extensions": [".kw"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "kawa",
+      "scopeName": "",
+      "path": "./syntaxes/kawa.tmLanguage.json"
+    }]
+  }
+}
