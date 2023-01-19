@@ -97,6 +97,9 @@ long double getVarVal(int pos, int* posP, bool toZeroBrackets){
             pos++;
         }
         else if(strcmp(tokens[pos].type, "bracket)") == 0){
+            if(bracketsRoC <= 0){
+                break;
+            }
             bracketsRoC--;
             pos++;
             if(toZeroBrackets == true){
@@ -240,6 +243,9 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
             pos++;
         }
         else if(strcmp(tokens[pos].type, "bracket)") == 0){
+            if(bracketsRoC <= 0){
+                break;
+            }
             bracketsRoC--;
             pos++;
             if(toZeroBrackets == true){
@@ -299,6 +305,9 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
             pos++;
         }
         else if(strcmp(tokens[pos].type, "operator") == 0){
+            if(strcmp(tokens[pos].value, "==") == 0 || strcmp(tokens[pos].value, ">") == 0 || strcmp(tokens[pos].value, "<") == 0 || strcmp(tokens[pos].value, "!=") == 0 || strcmp(tokens[pos].value, ">=") == 0 || strcmp(tokens[pos].value, "<=") == 0){
+                break;
+            }
             count ++;
             if(count == 1){
                 vals = malloc(sizeof(valu));
@@ -397,49 +406,49 @@ bool getArgument(argument* arg, int posI, int* posP){
     int pos = posI;
     getValue(pos, &pos, &val, false);
     if(strcmp(val.type, "int") == 0 || strcmp(val.type, "float") == 0){
-        if(strcmp(tokens[pos+2].type, "operator") == 0){
-            if(strcmp(tokens[pos+2].value, "==") == 0){
-                if(val.val == getVarVal(pos+3, &pos, false)){
+        if(strcmp(tokens[pos].type, "operator") == 0){
+            if(strcmp(tokens[pos].value, "==") == 0){
+                if(val.val == getVarVal(pos+1, &pos, false)){
                     arg->isTrue = true;
                 }
                 else{
                     arg->isTrue = false;
                 }
             }
-            else if(strcmp(tokens[pos+2].value, "!=") == 0){
-                if(val.val == getVarVal(pos+3, &pos, false)){
+            else if(strcmp(tokens[pos].value, "!=") == 0){
+                if(val.val == getVarVal(pos+1, &pos, false)){
                     arg->isTrue = false;
                 }
                 else{
                     arg->isTrue = false;
                 }
             }
-            else if(strcmp(tokens[pos+2].value, ">") == 0){
-                if(val.val > getVarVal(pos+3, &pos, false)){
+            else if(strcmp(tokens[pos].value, ">") == 0){
+                if(val.val > getVarVal(pos+1, &pos, false)){
                     arg->isTrue = true;
                 }
                 else{
                     arg->isTrue = false;
                 }
             }
-            else if(strcmp(tokens[pos+2].value, "<") == 0){
-                if(val.val < getVarVal(pos+3, &pos, false)){
+            else if(strcmp(tokens[pos].value, "<") == 0){
+                if(val.val < getVarVal(pos+1, &pos, false)){
                     arg->isTrue = true;
                 }
                 else{
                     arg->isTrue = false;
                 }
             }
-            else if(strcmp(tokens[pos+2].value, "<=") == 0){
-                if(val.val <= getVarVal(pos+3, &pos, false)){
+            else if(strcmp(tokens[pos].value, "<=") == 0){
+                if(val.val <= getVarVal(pos+1, &pos, false)){
                     arg->isTrue = true;
                 }
                 else{
                     arg->isTrue = false;
                 }
             }
-            else if(strcmp(tokens[pos+2].value, ">=") == 0){
-                if(val.val >= getVarVal(pos+3, &pos, false)){
+            else if(strcmp(tokens[pos].value, ">=") == 0){
+                if(val.val >= getVarVal(pos+1, &pos, false)){
                     arg->isTrue = true;
                 }
                 else{
@@ -449,49 +458,49 @@ bool getArgument(argument* arg, int posI, int* posP){
         }
     }
     else if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
-        if(strcmp(tokens[pos+2].type, "operator") == 0){
-            if(strcmp(tokens[pos+2].value, "==") == 0){
-                if(strcmp(val.value, getVarValue(pos+3, &pos)) == 0){
+        if(strcmp(tokens[pos].type, "operator") == 0){
+            if(strcmp(tokens[pos].value, "==") == 0){
+                if(strcmp(val.value, getVarValue(pos+1, &pos)) == 0){
                     arg->isTrue = true;
                 }
                 else{
                     arg->isTrue = false;
                 }
             }
-            else if(strcmp(tokens[pos+2].value, "!=") == 0){
-                if(strcmp(val.value, getVarValue(pos+3, &pos)) != 0){
+            else if(strcmp(tokens[pos].value, "!=") == 0){
+                if(strcmp(val.value, getVarValue(pos+1, &pos)) != 0){
                     arg->isTrue = false;
                 }
                 else{
                     arg->isTrue = true;
                 }
             }
-            else if(strcmp(tokens[pos+2].value, ">") == 0){
-                if(strtold(val.value, NULL) > getVarVal(pos+3, &pos, false)){
+            else if(strcmp(tokens[pos].value, ">") == 0){
+                if(strtold(val.value, NULL) > getVarVal(pos+1, &pos, false)){
                     arg->isTrue = true;
                 }
                 else{
                     arg->isTrue = false;
                 }
             }
-            else if(strcmp(tokens[pos+2].value, "<") == 0){
-                if(strtold(val.value, NULL) < getVarVal(pos+3, &pos, false)){
+            else if(strcmp(tokens[pos].value, "<") == 0){
+                if(strtold(val.value, NULL) < getVarVal(pos+1, &pos, false)){
                     arg->isTrue = true;
                 }
                 else{
                     arg->isTrue = false;
                 }
             }
-            else if(strcmp(tokens[pos+2].value, "<=") == 0){
-                if(strtold(val.value, NULL) <= getVarVal(pos+3, &pos, false)){
+            else if(strcmp(tokens[pos].value, "<=") == 0){
+                if(strtold(val.value, NULL) <= getVarVal(pos+1, &pos, false)){
                     arg->isTrue = true;
                 }
                 else{
                     arg->isTrue = false;
                 }
             }
-            else if(strcmp(tokens[pos+2].value, ">=") == 0){
-                if(strtold(val.value, NULL) >= getVarVal(pos+3, &pos, false)){
+            else if(strcmp(tokens[pos].value, ">=") == 0){
+                if(strtold(val.value, NULL) >= getVarVal(pos+1, &pos, false)){
                     arg->isTrue = true;
                 }
                 else{
@@ -805,9 +814,9 @@ void tokenize(){
             else{
                 strncpy(tokens[tokLen-1].type, "int", 5);
                 tokens[tokLen-1].val = strtold(res, NULL);
-                if(pos < length){
-                    //printf("Hello\n");
-                }
+                // if(pos < length){
+                //     //printf("Hello\n");
+                // }
             }
         }
         else{
@@ -1402,7 +1411,6 @@ bool parse(){
                     }
                 }
             }
-            pos++;
         }
         else if(strcmp(tokens[pos].type, "bracket}") == 0){
             if(openedBracketsShaped > 0){
@@ -1529,75 +1537,18 @@ bool parse(){
             if(exists){
                 if(tokLen > pos+2){
                     if(strcmp(tokens[pos+1].type, "operator") == 0){
-                        if(strcmp(tokens[pos+2].type, "keyword_custom") == 0){
-                            exists = false;
-                            int index2 = 0;
-                            for (int i = 0; i < varLen; i++) {
-                                if (strcmp(vars[i].name, tokens[pos+2].value) == 0) {
-                                    exists = true;
-                                    index2 = i;
-                                    break;
-                                }
-                                exists = false;
+                        if(strcmp(tokens[pos+1].value, "eq") == 0){
+                            valu val;
+                            if(getValue(pos+2, &pos, &val, false) != true){
+                                printf("Error getting value\n");
                             }
-                            if(exists){
-                                // if(strcmp(vars[index2].type, "string") == 0){
-                                // }
-                                // else if(strcmp(vars[index2].type, "int") == 0){
-                                //     vars[index].value = calloc(1, sizeof(int));
-                                // }
-                                // else if(strcmp(vars[index2].type, "float") == 0){
-                                //     vars[index].value = calloc(51, sizeof(char));
-                                // }
-                                // else if(strcmp(vars[index2].type, "bool") == 0){
-                                //     vars[index].value = calloc(1, sizeof(bool));
-                                // }
-                                // else if(strcmp(vars[index2].type, "char") == 0){
-                                //     vars[index].value = calloc(1, sizeof(char));
-                                // }
-                                // else if(strcmp(vars[index2].type, "u_int") == 0){
-                                //     vars[index].value = calloc(1, sizeof(unsigned int));
-                                // }
-                                // else if(strcmp(vars[index2].type, "short") == 0){
-                                //     vars[index].value = calloc(1, sizeof(short));
-                                // }
-                                // else if(strcmp(vars[index2].type, "long") == 0){
-                                //     vars[index].value = calloc(1, sizeof(long));
-                                // }
-                                // else if(strcmp(vars[index2].type, "u_long") == 0){
-                                //     vars[index].value = calloc(1, sizeof(unsigned long));
-                                // }
-                                // else if(strcmp(vars[index2].type, "l_long") == 0){
-                                //     vars[index].value = calloc(1, sizeof(long long));
-                                // }
-                                // else if(strcmp(vars[index2].type, "ul_long") == 0){
-                                //     vars[index].value = calloc(1, sizeof(unsigned long long));
-                                // }
-                                // else if(strcmp(vars[index2].type, "u_char") == 0){
-                                //     vars[index].value = calloc(1, sizeof(unsigned char));
-                                // }
-                                // else if(strcmp(vars[index2].type, "s_char") == 0){
-                                //     vars[index].value = calloc(1, sizeof(signed char));
-                                // }
-                                if(strcmp(vars[index2].type, "string") == 0){
-                                    strncpy(vars[index].value, vars[index2].value, 101);
-                                }
-                                else if(strcmp(vars[index2].type, "float") == 0 || strcmp(vars[index2].type, "int") == 0){
-                                    vars[index].val = vars[index2].val;
-                                }
-                                else{
-                                    strncpy(vars[index].value, "", 1);
-                                }
+                            vars[index].val = val.val;
+                            strcpy(vars[index].value, val.value);
+                            if(strcmp(vars[index].subtype, "") == 0 || vars[index].subtype == NULL){
+                                strcpy(vars[index].type, val.type);
                             }
                         }
-
                     }
-                    else{
-                        printf("Unexpected behaviour: expected operator\n");
-                    }
-                }
-                else{
-                    printf("Unexpected end of line when accesing variable %s\n", vars[index].name);
                 }
             }
             else{
@@ -1622,7 +1573,7 @@ void run(){
 }
 
 int main(int argc, char* argv[]){
-    char* version = "dev0.0.1.4";
+    char* version = "dev0.0.2.1";
     if (argc >= 2){
         for (int i = 1; i < argc; i++)
         {
