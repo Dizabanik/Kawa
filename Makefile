@@ -1,10 +1,10 @@
 all:
-	gcc test/test.c
+	gcc kawa.c
 opt:
-	gcc test/test.c -Ofast
+	gcc kawa.c -Ofast
 size:
-	gcc test/test.c -Oz
+	gcc kawa.c -Oz
 gitdev:
-	git add test/test.c
+	git add kawa.c
 	git commit -m --allow-empty-message ''
 	git push -u origin main --force
