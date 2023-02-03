@@ -8,10 +8,14 @@
 #include <ctype.h>
 #define ArrLeng(x)  (sizeof(x) / sizeof((x)[0]))
 #include <stdbool.h>
+#include <time.h>
 
 #define C_LANG 1
 
+#pragma region Random
 
+
+#pragma endregion
 short lang = 0;
 bool build = false;
 bool here = false;
@@ -22,11 +26,19 @@ typedef struct _argument{
     bool isNeeded;
     int pairId;
 } argument;
+typedef struct _farg{
+    
+} farg;
 typedef struct _token{
     char type[51];
     char value[101];
     long double val;
 } token;
+typedef struct _func{
+    int funcPos;
+    int fargsCount;
+    farg* fargs;
+} func;
 typedef struct _var{
     char name[51];
     char value[101];
@@ -35,22 +47,18 @@ typedef struct _var{
     char subtype[7];
     int bracketsToDelete;
     char pretype[5];
+    bool isFunc;
+    func function;
 } var;
 typedef struct _valu{
     char value[101];
     char type[51];
     long double val;
     char operatorType[5];
+    char subtype[7];
 } valu;
-typedef struct _func{
-    char name[51];
-    int pos;
-    void* value;
-    char type[51];
-} func;
 token* tokens;
 var* vars;
-func* funcs;
 int openedBracketsShaped = 0;
 int openedBracketsRound = 0;
 int openedBracketsSquare = 0;
@@ -71,9 +79,208 @@ char *strremove(char *str, const char *sub) {
     }
     return str;
 }
-char* getVarValue(int pos, int* posP){
-    
 
+bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
+    valu val;
+    int bracketsRoC = 0;
+    int bracketsShC = 0;
+    int bracketsSqC = 0;
+    if(toZeroBrackets == true){
+        bracketsRoC = 1;
+    }
+    valu* vals;
+    int count = 0;
+    while(pos < tokLen){
+        if(strcmp(tokens[pos].type, "bracket(") == 0){
+            bracketsRoC++;
+            valu vv;
+            getValue(pos+1, &pos, &vv, true);
+            count ++;
+            if(count == 1){
+                vals = malloc(sizeof(valu));
+            }
+            else{
+                vals = realloc(vals, count * sizeof(valu));
+            }
+            vals[count-1].val = vv.val;
+            strcpy(vals[count-1].type, vv.type);
+            strcpy(vals[count-1].value, vv.value);
+            pos++;
+        }
+        else if(strcmp(tokens[pos].type, "bracket)") == 0){
+            if(bracketsRoC <= 0){
+                break;
+            }
+            bracketsRoC--;
+            pos++;
+            if(toZeroBrackets == true){
+                if(bracketsRoC == 0){
+                    break;
+                }
+            }
+        }
+        else if(strcmp(tokens[pos].type, "keyword_custom") == 0){
+            count ++;
+            if(count == 1){
+                vals = malloc(sizeof(valu));
+            }
+            else{
+                vals = realloc(vals, count * sizeof(valu));
+            }
+            bool isT = false;
+            for(int i = 0; i < varLen; i ++){
+                if(strcmp(vars[i].name, tokens[pos].value) == 0){
+                    vals[count-1].val = vars[i].val;
+                    strcpy(vals[count-1].value, vars[i].value);
+                    strcpy(vals[count-1].type, vars[i].type);
+                    strcpy(vals[count-1].subtype, vars[i].subtype);
+                    isT = true;
+                    break;
+                }
+            }
+            if(isT == false){
+                printf("Variable %s not found\n", tokens[pos].value);
+                break;
+            }
+            pos++;
+        }
+        else if(strcmp(tokens[pos].type, "int") == 0 || strcmp(tokens[pos].type, "float") == 0){
+            count ++;
+            if(count == 1){
+                vals = malloc(sizeof(valu));
+            }
+            else{
+                vals = realloc(vals, count * sizeof(valu));
+            }
+            vals[count-1].val = tokens[pos].val;
+            strcpy(vals[count-1].type, tokens[pos].type);
+            pos++;
+        }
+        else if(strcmp(tokens[pos].type, "string") == 0){
+            count ++;
+            if(count == 1){
+                vals = malloc(sizeof(valu));
+            }
+            else{
+                vals = realloc(vals, count * sizeof(valu));
+            }
+            strcpy(vals[count-1].value, tokens[pos].value);
+            strcpy(vals[count-1].type, tokens[pos].type);
+            pos++;
+        }
+        else if(strcmp(tokens[pos].type, "char") == 0){
+            count ++;
+            if(count == 1){
+                vals = malloc(sizeof(valu));
+            }
+            else{
+                vals = realloc(vals, count * sizeof(valu));
+            }
+            strcpy(vals[count-1].value, " ");
+            vals[count-1].value[0] = tokens[pos].value[0];
+            strcpy(vals[count-1].type, tokens[pos].type);
+            pos++;
+        }
+        else if(strcmp(tokens[pos].type, "operator") == 0){
+            if(strcmp(tokens[pos].value, "==") == 0 || strcmp(tokens[pos].value, ">") == 0 || strcmp(tokens[pos].value, "<") == 0 || strcmp(tokens[pos].value, "!=") == 0 || strcmp(tokens[pos].value, ">=") == 0 || strcmp(tokens[pos].value, "<=") == 0 || strcmp(tokens[pos].value, "&&") == 0 || strcmp(tokens[pos].value, "||") == 0){
+                break;
+            }
+            count ++;
+            if(count == 1){
+                vals = malloc(sizeof(valu));
+            }
+            else{
+                vals = realloc(vals, count * sizeof(valu));
+            }
+            strncpy(vals[count-1].operatorType, tokens[pos].value, 5);
+            strcpy(vals[count-1].type, tokens[pos].type);
+            
+            pos++;
+        }
+        else{
+            break;
+        }
+    }
+    if(count > 0){
+        if(count > 1){
+            for(int i = 0; i < count; i++){
+                if(strcmp(vals[i].type, "operator") == 0){
+                    if(i > 0){
+                        if(strcmp(vals[i].operatorType, "add") == 0){
+                            if(strcmp(vals[i-1].type, "string") == 0 || strcmp(vals[i-1].type, "char") == 0){
+                                if(strcmp(vals[i+1].type, "int") == 0 || strcmp(vals[i+1].type, "float") == 0){
+                                    sprintf(vals[i+1].value, "%Lg", vals[i+1].val);
+                                }
+                                strcpy(vals[i+1].type, vals[i-1].type);
+                                
+                                strcat(vars[i-1].value, vals[i+1].value);
+                                strcpy(vals[i+1].value, vars[i-1].value);
+                            }
+                            else{
+                                if(strcmp(vals[i+1].type, "string") == 0 || strcmp(vals[i+1].type, "char") == 0){
+                                    vals[i+1].val = strtold(vals[i+1].value, NULL) + vals[i-1].val;
+                                    strcpy(vals[i+1].type, vals[i-1].type);
+                                }
+                                else{
+                                    vals[i+1].val = vals[i-1].val + vals[i+1].val;
+                                    strcpy(vals[i+1].type, vals[i-1].type);
+                                }
+                            }
+                            i+=2;
+                        }
+                        else if(strcmp(vals[i].operatorType, "sub") == 0){
+                            if(strcmp(vals[i-1].type, "string") == 0 || strcmp(vals[i-1].type, "char") == 0){
+                                strcpy(vals[i+1].type, vals[i-1].type);
+                                strcpy(vals[i+1].value, strremove(vals[i-1].value, vals[i+1].value));
+                            }
+                            else{
+                                if(strcmp(vals[i+1].type, "string") == 0 || strcmp(vals[i+1].type, "char") == 0){
+                                    vals[i+1].val = vals[i-1].val - strtold(vals[i+1].value, NULL);
+                                    
+                                }
+                                else{
+                                    vals[i+1].val = vals[i-1].val - vals[i+1].val;
+                                }
+                                strcpy(vals[i+1].type, vals[i-1].type);
+                            }
+                            i+=2;
+                        }
+                    }
+                    else{
+                        printf("Unexpected operator %s\n", vals[i].operatorType);
+                        return false;
+                    }
+                }
+                else if(strcmp(vals[i].type, "bracket(") == 0){
+                    
+                }
+                
+            }
+            strcpy(val.type, vals[count-1].type);
+            strcpy(val.value, vals[count-1].value);
+            val.val = vals[count-1].val;
+        }
+        else{
+            strcpy(val.type, vals[0].type);
+            strcpy(val.value, vals[0].value);
+            val.val = vals[0].val;
+        }
+    }
+    strcpy(value->type, val.type);
+    strcpy(value->value, val.value);
+    value->val = val.val;
+    
+    if(posP != NULL){
+        *posP = pos;
+    }
+    return true;
+}
+
+
+char* getVarValue(int pos, int* posP, bool toZeroBrackets){
+    valu val;
+    getValue(pos, posP, &val, toZeroBrackets);
+    return val.value;
 }
 long double getVarVal(int pos, int* posP, bool toZeroBrackets){
     int bracketsRoC = 0;
@@ -147,7 +354,7 @@ long double getVarVal(int pos, int* posP, bool toZeroBrackets){
             strcpy(vals[count-1].type, tokens[pos].type);
             pos++;
         }
-        else if(strcmp(tokens[pos].type, "string") == 0 || strcmp(tokens[pos].type, "char") == 0){
+        else if(strcmp(tokens[pos].type, "string") == 0){
             count ++;
             if(count == 1){
                 vals = malloc(sizeof(valu));
@@ -155,10 +362,24 @@ long double getVarVal(int pos, int* posP, bool toZeroBrackets){
             else{
                 vals = realloc(vals, count * sizeof(valu));
             }
+            
             // strcpy(vals[count-1].value, tokens[pos].value);
             vals[count-1].val = strtold(tokens[pos].value, NULL);
             strcpy(vals[count-1].type, tokens[pos].type);
             
+            pos++;
+        }
+        else if(strcmp(tokens[pos].type, "char") == 0){
+            count ++;
+            if(count == 1){
+                vals = malloc(sizeof(valu));
+            }
+            else{
+                vals = realloc(vals, count * sizeof(valu));
+            }
+            strcpy(vals[count-1].value, " ");
+            vals[count-1].value[0] = tokens[pos].value[0];
+            strcpy(vals[count-1].type, tokens[pos].type);
             pos++;
         }
         else if(strcmp(tokens[pos].type, "operator") == 0){
@@ -187,11 +408,11 @@ long double getVarVal(int pos, int* posP, bool toZeroBrackets){
                         if(strcmp(vals[i].operatorType, "add") == 0){
                             // vals[i].val = vals[i-1].val + vals[i].val;
                             vals[i+1].val = vals[i-1].val + vals[i+1].val;
-                            i++;
+                            i+=2;
                         }
                         else if(strcmp(vals[i].operatorType, "sub") == 0){
                             vals[i+1].val = vals[i-1].val - vals[i+1].val;
-                            i++;
+                            i+=2;
                         }
                     }
                     else{
@@ -206,9 +427,7 @@ long double getVarVal(int pos, int* posP, bool toZeroBrackets){
             ret = vals[count-1].val;
         }
         else{
-            if(strcmp(vals[0].type, "int") == 0 || strcmp(vals[0].type, "float") == 0){
-                ret = vals[0].val;
-            }
+            ret = vals[0].val;
         }
     }
     
@@ -217,190 +436,7 @@ long double getVarVal(int pos, int* posP, bool toZeroBrackets){
     }
     return ret;
 }
-bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
-    valu val;
-    int bracketsRoC = 0;
-    int bracketsShC = 0;
-    int bracketsSqC = 0;
-    if(toZeroBrackets == true){
-        bracketsRoC = 1;
-    }
-    valu* vals;
-    int count = 0;
-    while(pos < tokLen){
-        if(strcmp(tokens[pos].type, "bracket(") == 0){
-            bracketsRoC++;
-            valu vv;
-            getValue(pos+1, &pos, &vv, true);
-            count ++;
-            if(count == 1){
-                vals = malloc(sizeof(valu));
-            }
-            else{
-                vals = realloc(vals, count * sizeof(valu));
-            }
-            vals[count-1].val = vv.val;
-            strcpy(vals[count-1].type, vv.type);
-            strcpy(vals[count-1].value, vv.value);
-            pos++;
-        }
-        else if(strcmp(tokens[pos].type, "bracket)") == 0){
-            if(bracketsRoC <= 0){
-                break;
-            }
-            bracketsRoC--;
-            pos++;
-            if(toZeroBrackets == true){
-                if(bracketsRoC == 0){
-                    break;
-                }
-            }
-        }
-        else if(strcmp(tokens[pos].type, "keyword_custom") == 0){
-            count ++;
-            if(count == 1){
-                vals = malloc(sizeof(valu));
-            }
-            else{
-                vals = realloc(vals, count * sizeof(valu));
-            }
-            bool isT = false;
-            for(int i = 0; i < varLen; i ++){
-                if(strcmp(vars[i].name, tokens[pos].value) == 0){
-                    vals[count-1].val = vars[i].val;
-                    strcpy(vals[count-1].value, vars[i].value);
-                    strcpy(vals[count-1].type, vars[i].type);
-                    
-                    isT = true;
-                    break;
-                }
-            }
-            if(isT == false){
-                printf("Variable %s not found\n", tokens[pos].value);
-                break;
-            }
-            pos++;
-        }
-        else if(strcmp(tokens[pos].type, "int") == 0 || strcmp(tokens[pos].type, "float") == 0){
-            count ++;
-            if(count == 1){
-                vals = malloc(sizeof(valu));
-            }
-            else{
-                vals = realloc(vals, count * sizeof(valu));
-            }
-            vals[count-1].val = tokens[pos].val;
-            strcpy(vals[count-1].type, tokens[pos].type);
-            pos++;
-        }
-        else if(strcmp(tokens[pos].type, "string") == 0 || strcmp(tokens[pos].type, "char") == 0){
-            count ++;
-            if(count == 1){
-                vals = malloc(sizeof(valu));
-            }
-            else{
-                vals = realloc(vals, count * sizeof(valu));
-            }
-            strcpy(vals[count-1].value, tokens[pos].value);
-            strcpy(vals[count-1].type, tokens[pos].type);
-            pos++;
-        }
-        else if(strcmp(tokens[pos].type, "operator") == 0){
-            if(strcmp(tokens[pos].value, "==") == 0 || strcmp(tokens[pos].value, ">") == 0 || strcmp(tokens[pos].value, "<") == 0 || strcmp(tokens[pos].value, "!=") == 0 || strcmp(tokens[pos].value, ">=") == 0 || strcmp(tokens[pos].value, "<=") == 0 || strcmp(tokens[pos].value, "&&") == 0 || strcmp(tokens[pos].value, "||") == 0){
-                break;
-            }
-            count ++;
-            if(count == 1){
-                vals = malloc(sizeof(valu));
-            }
-            else{
-                vals = realloc(vals, count * sizeof(valu));
-            }
-            strncpy(vals[count-1].operatorType, tokens[pos].value, 5);
-            strcpy(vals[count-1].type, tokens[pos].type);
-            
-            pos++;
-        }
-        else{
-            break;
-        }
-    }
-    if(count > 0){
-        if(count > 1){
-            for(int i = 0; i < count; i++){
-                if(strcmp(vals[i].type, "operator") == 0){
-                    if(i > 0){
-                        if(strcmp(vals[i].operatorType, "add") == 0){
-                            if(strcmp(vals[i-1].type, "string") == 0 || strcmp(vals[i-1].type, "char") == 0){
-                                if(strcmp(vals[i+1].type, "int") == 0 || strcmp(vals[i+1].type, "float") == 0){
-                                    sprintf(vals[i+1].value, "%Lg", vals[i+1].val);
-                                }
-                                strcpy(vals[i+1].type, vals[i-1].type);
-                                char *tmp = strdup(vals[i+1].value);
-                                
-                                strcpy(tmp, vals[i-1].value);
-                                
-                                strcat(vals[i+1].value, tmp);
-                                free(tmp);
-                            }
-                            else{
-                                if(strcmp(vals[i+1].type, "string") == 0 || strcmp(vals[i+1].type, "char") == 0){
-                                    vals[i+1].val = strtold(vals[i+1].value, NULL) + vals[i-1].val;
-                                    strcpy(vals[i+1].type, vals[i-1].type);
-                                }
-                                else{
-                                    vals[i+1].val = vals[i-1].val + vals[i+1].val;
-                                    strcpy(vals[i+1].type, vals[i-1].type);
-                                }
-                            }
-                            i++;
-                        }
-                        else if(strcmp(vals[i].operatorType, "sub") == 0){
-                            if(strcmp(vals[i-1].type, "string") == 0 || strcmp(vals[i-1].type, "char") == 0){
-                                strcpy(vals[i+1].type, vals[i-1].type);
-                                strcpy(vals[i+1].value, strremove(vals[i-1].value, vals[i+1].value));
-                            }
-                            else{
-                                if(strcmp(vals[i+1].type, "string") == 0 || strcmp(vals[i+1].type, "char") == 0){
-                                    vals[i+1].val = vals[i-1].val - strtold(vals[i+1].value, NULL);
-                                    
-                                }
-                                else{
-                                    vals[i+1].val = vals[i-1].val - vals[i+1].val;
-                                }
-                                strcpy(vals[i+1].type, vals[i-1].type);
-                            }
-                            i++;
-                        }
-                    }
-                    else{
-                        printf("Unexpected operator %s\n", vals[i].operatorType);
-                        return false;
-                    }
-                }
-                else if(strcmp(vals[i].type, "bracket(") == 0){
-                    
-                }
-                
-            }
-            strcpy(val.type, vals[count-1].type);
-            strcpy(val.value, vals[count-1].value);
-            val.val = vals[count-1].val;
-        }
-        else{
-            strcpy(val.type, vals[0].type);
-            strcpy(val.value, vals[0].value);
-            val.val = vals[0].val;
-        }
-    }
-    strcpy(value->type, val.type);
-    strcpy(value->value, val.value);
-    value->val = val.val;
-    if(posP != NULL){
-        *posP = pos;
-    }
-    return true;
-}
+
 
 bool getArgument(argument* arg, int posI, int* posP){
     valu val;
@@ -463,7 +499,7 @@ bool getArgument(argument* arg, int posI, int* posP){
     else if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
         if(strcmp(tokens[pos].type, "operator") == 0){
             if(strcmp(tokens[pos].value, "==") == 0){
-                if(strcmp(val.value, getVarValue(pos+1, &pos)) == 0){
+                if(strcmp(val.value, getVarValue(pos+1, &pos, false)) == 0){
                     arg->isTrue = true;
                 }
                 else{
@@ -471,7 +507,7 @@ bool getArgument(argument* arg, int posI, int* posP){
                 }
             }
             else if(strcmp(tokens[pos].value, "!=") == 0){
-                if(strcmp(val.value, getVarValue(pos+1, &pos)) != 0){
+                if(strcmp(val.value, getVarValue(pos+1, &pos, false)) != 0){
                     arg->isTrue = false;
                 }
                 else{
@@ -515,70 +551,200 @@ bool getArgument(argument* arg, int posI, int* posP){
     return true;
 }
 
-bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSubtype){
+bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSubtype, bool withOper){
     if(strcmp(subtype, "u32") == 0){
-        vari->val = (uint_fast32_t)getVarVal(pos, &pos, false);
+        if(withOper){
+            vari->val = (uint_fast32_t)getVarVal(pos, &pos, false);
+        }
+        else{
+            vari->val = 0;
+        }
         strncpy(vars[varLen-1].type, "int", 51);
     }
     else if(strcmp(subtype, "u16") == 0){
-        vari->val = (uint_fast16_t)getVarVal(pos, &pos, false);
+        if(withOper){
+            vari->val = (uint_fast16_t)getVarVal(pos, &pos, false);
+        }
+        else{
+            vari->val = 0;
+        }
         strncpy(vars[varLen-1].type, "int", 51);
     }
     else if(strcmp(subtype, "u8") == 0){
-        vari->val = (uint_fast8_t)getVarVal(pos, &pos, false);
+        if(withOper){
+            vari->val = (uint_fast8_t)getVarVal(pos, &pos, false);
+        }
+        else{
+            vari->val = 0;
+        }
         strncpy(vars[varLen-1].type, "int", 51);
     }
     else if(strcmp(subtype, "i32") == 0){
-        vari->val = (int_fast32_t)getVarVal(pos, &pos, false);
+        if(withOper){
+            vari->val = (int_fast32_t)getVarVal(pos, &pos, false);
+        }
+        else{
+            vari->val = 0;
+        }
         strncpy(vars[varLen-1].type, "int", 51);
     }
     else if(strcmp(subtype, "i16") == 0){
-        vari->val = (int_fast16_t)getVarVal(pos, &pos, false);
+        if(withOper){
+            vari->val = (int_fast16_t)getVarVal(pos, &pos, false);
+        }
+        else{
+            vari->val = 0;
+        }
         strncpy(vars[varLen-1].type, "int", 51);
     }
     else if(strcmp(subtype, "i8") == 0){
-        vari->val = (int_fast8_t)getVarVal(pos, &pos, false);
+        if(withOper){
+            vari->val = (int_fast8_t)getVarVal(pos, &pos, false);
+        }
+        else{
+            vari->val = 0;
+        }
         strncpy(vars[varLen-1].type, "int", 51);
     }
     else if(strcmp(subtype, "double") == 0){
-        vari->val = (double)getVarVal(pos, &pos, false);
+        if(withOper){
+            vari->val = (double)getVarVal(pos, &pos, false);
+        }
+        else{
+            vari->val = 0.0;
+        }
         strncpy(vars[varLen-1].type, "float", 51);
     }
     else if(strcmp(subtype, "float") == 0){
-        vari->val = (float)getVarVal(pos, &pos, false);
+        if(withOper){
+            vari->val = (float)getVarVal(pos, &pos, false);
+        }
+        else{
+            vari->val = 0.0;
+        }
         strncpy(vars[varLen-1].type, "float", 51);
     }
     else if(strcmp(subtype, "ldob") == 0){
-        vari->val = getVarVal(pos, &pos, false);
+        if(withOper){
+            vari->val = getVarVal(pos, &pos, false);
+        }
+        else{
+            vari->val = 0.0;
+        }
         strncpy(vars[varLen-1].type, "float", 51);
     }
     else if(strcmp(subtype, "long") == 0){
-        vari->val = (long)getVarVal(pos, &pos, false);
+        if(withOper){
+            vari->val = (long)getVarVal(pos, &pos, false);
+        }
+        else{
+            vari->val = 0;
+        }
         strncpy(vars[varLen-1].type, "int", 51);
     }
     else if(strcmp(subtype, "llong") == 0){
-        vari->val = (long long)getVarVal(pos, &pos, false);
+        if(withOper){
+            vari->val = (long long)getVarVal(pos, &pos, false);
+        }
+        else{
+            vari->val = 0;
+        }
         strncpy(vars[varLen-1].type, "int", 51);
     }
     else if(strcmp(subtype, "int") == 0){
-        vari->val = (int)getVarVal(pos, &pos, false);
+        if(withOper){
+            vari->val = (int)getVarVal(pos, &pos, false);
+        }
+        else{
+            vari->val = 0;
+        }
         strncpy(vars[varLen-1].type, "int", 51);
     }
     else if(strcmp(subtype, "si") == 0){
-        vari->val = (signed int)getVarVal(pos, &pos, false);
+        if(withOper){
+            vari->val = (signed int)getVarVal(pos, &pos, false);
+        }
+        else{
+            vari->val = 0;
+        }
         strncpy(vars[varLen-1].type, "int", 51);
     }
     else if(strcmp(subtype, "ui") == 0){
-        vari->val = (unsigned int)getVarVal(pos, &pos, false);
+        if(withOper){
+            vari->val = (unsigned int)getVarVal(pos, &pos, false);
+        }
+        else{
+            vari->val = 0;
+        }
         strncpy(vars[varLen-1].type, "int", 51);
     }
     else if(strcmp(subtype, "u64") == 0){
-        vari->val = (uint_fast64_t)getVarVal(pos, &pos, false);
+        if(withOper){
+            vari->val = (uint_fast64_t)getVarVal(pos, &pos, false);
+        }
+        else{
+            vari->val = 0;
+        }
         strncpy(vars[varLen-1].type, "int", 51);
     }
     else if(strcmp(subtype, "i64") == 0){
-        vari->val = (int_fast64_t)getVarVal(pos, &pos, false);
+        if(withOper){
+            vari->val = (int_fast64_t)getVarVal(pos, &pos, false);
+        }
+        else{
+            vari->val = 0;
+        }
         strncpy(vars[varLen-1].type, "int", 51);
+    }
+    else if(strcmp(subtype, "mut") == 0){
+        if(withOper){
+            valu val;
+            bool vv = getValue(pos+3, &pos, &val, false);
+            strncpy(vars[varLen-1].value, val.value, 101);
+            strncpy(vars[varLen-1].type, val.type, 51);
+            vari->val = val.val;
+        }
+        else{
+            strncpy(vars[varLen-1].value, "", 101);
+            strncpy(vars[varLen-1].type, "null", 51);
+            vari->val = 0;
+        }
+    }
+    else if(strcmp(subtype, "sc") == 0){
+        if(withOper){
+            strncpy(vari->value, getVarValue(pos, &pos, false), 1);
+        }
+        else{
+            strncpy(vari->value, "", 1);
+        }
+        strncpy(vars[varLen-1].type, "char", 51);
+    }
+    else if(strcmp(subtype, "uc") == 0){
+        if(withOper){
+            strncpy(vari->value, getVarValue(pos, &pos, false), 1);
+        }
+        else{
+            strncpy(vari->value, "", 1);
+        }
+        strncpy(vars[varLen-1].type, "char", 51);
+    }
+    else if(strcmp(subtype, "char") == 0){
+        if(withOper){
+            strncpy(vari->value, getVarValue(pos, &pos, false), 1);
+        }
+        else{
+            strncpy(vari->value, "", 1);
+        }
+        strncpy(vars[varLen-1].type, "char", 51);
+    }
+    else if(strcmp(subtype, "str") == 0){
+        if(withOper){
+            strncpy(vari->value, getVarValue(pos, &pos, false), 101);
+        }
+        else{
+            strncpy(vari->value, "", 1);
+        }
+        strncpy(vars[varLen-1].type, "char", 51);
     }
     else{
 
@@ -649,23 +815,33 @@ bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int brackets
         //free(vval);
         return false;
     }
+    
     if(varLen > 0){
-        vars = realloc(vars, varLen + 1);
+        vars = realloc(vars, sizeof(var) * (varLen + 1));
+        
     }
     else{
         vars = malloc(sizeof(var));
     }
     varLen++;
+    
     strncpy(vars[varLen-1].name, varName, 51);
     valu val;
     if(subtype != NULL){
-        calculateSubtype(subtype, &vars[varLen-1], pos, &pos, true);
+        calculateSubtype(subtype, &vars[varLen-1], pos, &pos, true, isOper);
     }
     else{
-        bool vv = getValue(pos+3, &pos, &val, false);
-        strncpy(vars[varLen-1].value, val.value, 101);
-        strncpy(vars[varLen-1].type, val.type, 51);
-        vars[varLen-1].val = val.val;
+        if(isOper){
+            bool vv = getValue(pos+3, &pos, &val, false);
+            strncpy(vars[varLen-1].value, val.value, 101);
+            strncpy(vars[varLen-1].type, val.type, 51);
+            vars[varLen-1].val = val.val;
+        }
+        else{
+            strncpy(vars[varLen-1].value, "", 2);
+            strncpy(vars[varLen-1].type, "null", 51);
+            vars[varLen-1].val = 0;
+        }
     }
     if(pretype != NULL){
         strncpy(vars[varLen-1].pretype, pretype, 5);
@@ -673,6 +849,7 @@ bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int brackets
     if(withKeyword == true){
         pos++;
     }
+    
     *posi = pos;
     return true;
 }
@@ -963,24 +1140,24 @@ void tokenize(){
                             column++;
                             goto gt1;
                         }
-                        else if(codes[pos] == ')'){
-                            brackets = 3;
-                            pos++;
-                            column++;
-                            goto gt1;
-                        }
-                        else if(codes[pos] == ']'){
-                            brackets = 4;
-                            pos++;
-                            column++;
-                            goto gt1;
-                        }
-                        else if(codes[pos] == '}'){
-                            brackets = 5;
-                            pos++;
-                            column++;
-                            goto gt1;
-                        }
+                        // else if(codes[pos] == ')'){
+                        //     brackets = 3;
+                        //     pos++;
+                        //     column++;
+                        //     goto gt1;
+                        // }
+                        // else if(codes[pos] == ']'){
+                        //     brackets = 4;
+                        //     pos++;
+                        //     column++;
+                        //     goto gt1;
+                        // }
+                        // else if(codes[pos] == '}'){
+                        //     brackets = 5;
+                        //     pos++;
+                        //     column++;
+                        //     goto gt1;
+                        // }
                         else{
                             isInclude = false;
                         }
@@ -992,10 +1169,8 @@ void tokenize(){
                 for (int i = 0; i < ArrLeng(BUILT_IN_KEYWORDS); i++) {
                     if (strcmp(BUILT_IN_KEYWORDS[i], res) == 0) {
                         isInclude = true;
-                        
                         break;
                     }
-                    isInclude = false;
                 }
                 if(!isInclude){
                     for (int i = 0; i < ArrLeng(BUILT_IN_STATEMENTS); i++) {
@@ -1003,16 +1178,16 @@ void tokenize(){
                             isStatement = true;
                             break;
                         }
-                        isStatement = false;
                     }
                 }
-                if(tokLen > 0){
-                    tokens = realloc(tokens, (tokLen+1)*sizeof(token));
+                tokLen++;
+                if(tokLen > 1){
+                    tokens = realloc(tokens, (tokLen)*sizeof(token));
                 }
                 else{
                     tokens = calloc(1, sizeof(token));
                 }
-                tokLen++;
+                
                 //tokens[tokLen-1].type = calloc(1,1);
                 //tokens[tokLen-1].value = calloc(1,1);
                 if(isInclude){
@@ -1032,7 +1207,6 @@ void tokenize(){
                                 isInclude = true;
                                 break;
                             }
-                            isInclude = false;
                         }
                         if(isInclude){
                             strncpy(tokens[tokLen-1].type, "function", 11);
@@ -1045,39 +1219,52 @@ void tokenize(){
                 }
                 strncpy(tokens[tokLen-1].value, res, 101);
                 if(isFunc){
-                    tokens = realloc(tokens, (tokLen+1)*sizeof(token));
                     tokLen++;
+                    if(tokLen > 1){
+                        tokens = realloc(tokens, (tokLen)*sizeof(token));
+                    }
+                    else{
+                        tokens = malloc(sizeof(token));
+                    }
                     strncpy(tokens[tokLen-1].type, "bracket(", 15);
-                    isFunc = false;
                 }
                 if(brackets == 1){
-                    tokens = realloc(tokens, (tokLen+1)*sizeof(token));
                     tokLen++;
+                    if(tokLen > 1){
+                        tokens = realloc(tokens, (tokLen)*sizeof(token));
+                    }
+                    else{
+                        tokens = malloc(sizeof(token));
+                    }
                     strncpy(tokens[tokLen-1].type, "bracket[", 15);
                 }
                 else if(brackets == 2){
-                    tokens = realloc(tokens, (tokLen+1)*sizeof(token));
                     tokLen++;
+                    if(tokLen > 1){
+                        tokens = realloc(tokens, (tokLen)*sizeof(token));
+                    }
+                    else{
+                        tokens = malloc(sizeof(token));
+                    }
                     strncpy(tokens[tokLen-1].type, "bracket{", 15);
                 }
-                else if(brackets == 3){
-                    tokens = realloc(tokens, (tokLen+1)*sizeof(token));
-                    tokLen++;
+                // else if(brackets == 3){
+                //     tokens = realloc(tokens, (tokLen+1)*sizeof(token));
+                //     tokLen++;
                     
-                    strncpy(tokens[tokLen-1].type, "bracket)", 15);
-                }
-                else if(brackets == 4){
-                    tokens = realloc(tokens, (tokLen+1)*sizeof(token));
-                    tokLen++;
-                    strncpy(tokens[tokLen-1].type, "bracket]", 15);
-                }
-                else if(brackets == 5){
-                    tokens = realloc(tokens, (tokLen+1)*sizeof(token));
-                    tokLen++;
-                    strncpy(tokens[tokLen-1].type, "bracket}", 15);
-                }
+                //     strncpy(tokens[tokLen-1].type, "bracket)", 15);
+                // }
+                // else if(brackets == 4){
+                //     tokens = realloc(tokens, (tokLen+1)*sizeof(token));
+                //     tokLen++;
+                //     strncpy(tokens[tokLen-1].type, "bracket]", 15);
+                // }
+                // else if(brackets == 5){
+                //     tokens = realloc(tokens, (tokLen+1)*sizeof(token));
+                //     tokLen++;
+                //     strncpy(tokens[tokLen-1].type, "bracket}", 15);
+                // }
                 isFunc = false;
-                
             }
             else if(currentChar == '='){
                 pos++;
@@ -1257,149 +1444,62 @@ void tokenize(){
 bool parse(){
     const int len = tokLen;
     int pos = 0;
-    char varT[10] = "";
+    char varT[12] = "";
+    
     while(pos<len){
         //-------------------print--------------------
-        if(strcmp(tokens[pos].type, "function") == 0 && strcmp(tokens[pos].value, "print") == 0 || strcmp(tokens[pos].value, "println") == 0){
+        if(strncmp(tokens[pos].type, "function", 9) == 0 && strncmp(tokens[pos].value, "print", 6) == 0 || strncmp(tokens[pos].value, "println", 6) == 0){
+            int p = pos;
             if(tokLen <= pos+1){
                 printf("Unexpected function invoke, expected (\n");
                 return false;
             }
             else if(tokLen <= pos+2){
-                printf("Unexpected end of line, expected value for print\n");
+                printf("Unexpected end of line, expected value for %s\n", tokens[p].value);
                 return false;
             }
-            int p = pos+3;
-            while(strcmp(tokens[p].type, "bracket)") != 0){
-                if(tokLen <= p){
-                    printf("Unexpected end of line, expected )\n");
-                    return false;
-                }
-                p++;
+            
+            valu val;
+
+            if(getValue(pos+2, &pos, &val, false) == false){
+                printf("Error getting value for print\n");
+                return false;
             }
-            if(strcmp(tokens[p].type, "bracket)") != 0){
+            if(strcmp(tokens[pos].type, "bracket)") != 0){
                 printf("Unexpected end of function print, expected )\n");
                 return false;
             }
-            bool isVar = false;
-            if(strcmp(tokens[pos+2].type, "keyword_custom") == 0){
-                isVar = true;
+            if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
+                printf("%s", val.value);
             }
-            bool isString = false;
-            if(!isVar && strcmp(tokens[pos+2].type, "string") == 0){
-                isString = true;
+            else if(strcmp(val.type, "int") == 0 || strcmp(val.type, "float") == 0){
+                printf("%Lg", val.val);
             }
-            bool isChar = false;
-            if(!isVar && strcmp(tokens[pos+2].type, "char") == 0){
-                isChar = true;
+            else if(strcmp(val.type, "null") == 0){
+                printf("nulltype");
             }
-            bool isInt = false;
-            if(!isVar && strcmp(tokens[pos+2].type, "int") == 0){
-                isInt = true;
-            }
-            bool isFloat = false;
-            if(!isVar && strcmp(tokens[pos+2].type, "float") == 0){
-                isFloat = true;
-            }
-            if(!isString && !isVar && !isChar & !isInt && !isFloat){
-                printf("Unexpected token %s\n", tokens[pos+2].type);
-            }
-            if(isVar){
-                bool isNorm = false;
-                for (int i = 0; i < varLen; i++) {
-                    if (strcmp(tokens[pos+2].value, vars[i].name) == 0) {
-                        isNorm = true;
-                        if(vars[i].type){
-                            if(strcmp(vars[i].type, "string") == 0){
-                                printf("%s", vars[i].value);
-                                break;
-                            }
-                            else if(strcmp(vars[i].type, "int") == 0){
-                                printf("%d", (int)vars[i].val);
-                                break;
-                            }
-                            else if(strcmp(vars[i].type, "u_int") == 0){
-                                printf("%u", (unsigned int)vars[i].val);
-                                break;
-                            }
-                            else if(strcmp(vars[i].type, "short") == 0){
-                                printf("%hd", (short)vars[i].val);
-                                break;
-                            }
-                            else if(strcmp(vars[i].type, "u_short") == 0){
-                                printf("%hu", (unsigned short)vars[i].val);
-                                break;
-                            }
-                            else if(strcmp(vars[i].type, "long") == 0){
-                                printf("%ld", (long)vars[i].val);
-                                break;
-                            }
-                            else if(strcmp(vars[i].type, "u_long") == 0){
-                                printf("%lu", (unsigned long)vars[i].val);
-                                break;
-                            }
-                            else if(strcmp(vars[i].type, "l_long") == 0){
-                                printf("%lld", (long long)vars[i].val);
-                                break;
-                            }
-                            else if(strcmp(vars[i].type, "ul_long") == 0){
-                                printf("%llu", (unsigned long long)vars[i].val);
-                                break;
-                            }
-                            else if(strcmp(vars[i].type, "float") == 0){
-                                printf("%Lg", vars[i].val);
-                                break;
-                            }
-                            else if(strcmp(vars[i].type, "char") == 0){
-                                printf("%c", vars[i].value[0]);
-                                break;
-                            }
-                            else if(strcmp(vars[i].type, "u_char") == 0){
-                                printf("%u", vars[i].value[0]);
-                                break;
-                            }
-                            else if(strcmp(vars[i].type, "s_char") == 0){
-                                printf("%c", vars[i].value[0]);
-                                break;
-                            }
-                            // else if(strcmp(vars[i].type, "bool") == 0){
-                            //     if(vars[i].value == true){
-                            //         printf("true");
-                            //     }
-                            //     else{
-                            //         printf("false");
-                            //     }
-                            //     break;
-                            // }
-                        }
-                        break;
-                    }
-                    isNorm = false;
-                }
-                if(!isNorm){
-                    printf("Undefined variable %s", tokens[pos+2].value);
-                    return false;
-                }
-                
-            }
-            else{
-                if(isString){
-                    printf("%s", tokens[pos+2].value);
-                }
-                else if(isFloat){
-                    printf("%Lg", tokens[pos+2].val);
-                }
-                else if(isChar){
-                    printf("%c", tokens[pos+2].value[0]);
-                }
-                else if(isInt){
-                    printf("%d", (int)tokens[pos+2].val);
-                }
-            }
-            if(strcmp(tokens[pos].value, "println") == 0){
+            if(strcmp(tokens[p].value, "println") == 0){
                 printf("\n");
             }
-            pos += 4;
+            pos++;
+        }
+        else if(strcmp(tokens[pos].type, "function_custom") == 0){
+            int p = pos;
+            if(tokLen <= pos+1){
+                printf("Unexpected function invoke, expected (\n");
+                return false;
+            }
+            else if(tokLen <= pos+2){
+                printf("Unexpected end of line, expected value for %s\n", tokens[p].value);
+                return false;
+            }
+            
+            valu val;
+
+            if(getValue(pos+2, &pos, &val, false) == false){
+                printf("Error getting value for print\n");
+                return false;
+            }
         }
         //----------------------if statement--------------------------
         else if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "if") == 0){
@@ -1554,11 +1654,6 @@ bool parse(){
             openedBracketsSquare++;
             pos++;
         }
-        //-------------------mut---------------------
-        else if(strcmp(tokens[pos].type, "keyword") == 0 && strcmp(tokens[pos].value, "mut") == 0){
-            strcpy(varT, "mut");
-            pos++;
-        }
         //-------------------var--------------------
         else if(strcmp(tokens[pos].type, "keyword") == 0 && strcmp(tokens[pos].value, "var") == 0){
             bool b = createVar(pos, &pos, true, NULL, openedBracketsShaped-1, NULL);
@@ -1599,19 +1694,19 @@ bool parse(){
                 if(tokLen > pos+2){
                     if(strcmp(tokens[pos+1].type, "operator") == 0){
                         if(strcmp(tokens[pos+1].value, "eq") == 0){
-                            if(strcmp(vars[index].subtype, "") == 0 || vars[index].subtype == NULL || strcmp(vars[index].pretype, "mut") == 0){
+                            if(strcmp(vars[index].subtype, "") == 0 || vars[index].subtype == NULL || strcmp(vars[index].subtype, "mut") == 0){
                                 valu val;
                                 if(getValue(pos+2, &pos, &val, false) != true){
                                     printf("Error getting value\n");
                                 }
                                 vars[index].val = val.val;
                                 strcpy(vars[index].value, val.value);
-                                if(strcmp(vars[index].pretype, "mut") == 0){
+                                if(strcmp(vars[index].subtype, "mut") == 0){
                                     strcpy(vars[index].type, val.type);
                                 }
                             }
                             else{
-                                calculateSubtype(vars[index].subtype, &vars[index], pos+2, &pos, false);
+                                calculateSubtype(vars[index].subtype, &vars[index], pos+2, &pos, false, true);
                             }
                         }
                     }
@@ -1660,8 +1755,12 @@ int main(int argc, char* argv[]){
             }
             else if(strcmp(argv[i], "--build") == 0 || strcmp(argv[i], "-b") == 0){
                 build = true;
+                lang = C_LANG;
             }
             else if(strcmp(argv[i], "--here") == 0 || strcmp(argv[i], "-h") == 0){
+                here = true;
+            }
+            else if(strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "-version") == 0){
                 here = true;
             }
             else{
@@ -1676,7 +1775,7 @@ int main(int argc, char* argv[]){
                     fseek (f, 0, SEEK_END);
                     length = ftell (f);
                     if(debug){
-                        printf("File %s length: %d.\n", argv[1], length);
+                        printf("File %s length: %d.\n", argv[i], length);
                     }
                     fseek (f, 0, SEEK_SET);
                     buffer = malloc (length+1);
@@ -1686,7 +1785,7 @@ int main(int argc, char* argv[]){
                     }
                     buffer[length] = '\0';
                     if(debug){
-                        printf("File %s has been readed.\n", argv[1]);
+                        printf("File %s has been readed.\n", argv[i]);
                     }
                     fclose (f);
                 }
@@ -1724,23 +1823,24 @@ int main(int argc, char* argv[]){
     if(debug){
         printf("\nDEBUG FREE\n");
     }
-    free(vars);
-    if(debug){
-        printf("Freed all vars.\n");
+    if(vars != NULL){
+        free(vars);
+        if(debug){
+            printf("Freed all vars.\n");
+        }
     }
-    free(funcs);
-    if(debug){
-        printf("Freed all funcs.\n");
+    if(tokens != NULL){
+        free(tokens);
+        if(debug){
+            printf("Freed all tokens.\n");
+        }
     }
-    free(tokens);
-    if(debug){
-        printf("Freed all tokens.\n");
+    if(codes != NULL){
+        free(codes);
+        if(debug){
+            printf("Freed all codes.\n");
+        }
     }
-    free(codes);
-    if(debug){
-        printf("Freed all codes.\n");
-    }
-    
 
     return 0;
 }
