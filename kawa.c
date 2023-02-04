@@ -12,6 +12,7 @@
 
 #define C_LANG 1
 
+
 #pragma region Random
 
 
@@ -20,6 +21,7 @@ short lang = 0;
 bool build = false;
 bool here = false;
 bool debug = false;
+bool forceBuild = false;
 FILE *fp;
 typedef struct _argument{
     bool isTrue;
@@ -27,18 +29,17 @@ typedef struct _argument{
     int pairId;
 } argument;
 typedef struct _farg{
-    
+    char* name;
+    void* value;
+    char* type;
+    char* subtype;
 } farg;
 typedef struct _token{
     char type[51];
     char value[101];
     long double val;
 } token;
-typedef struct _func{
-    int funcPos;
-    int fargsCount;
-    farg* fargs;
-} func;
+
 typedef struct _var{
     char name[51];
     char value[101];
@@ -48,7 +49,9 @@ typedef struct _var{
     int bracketsToDelete;
     char pretype[5];
     bool isFunc;
-    func function;
+    int funcPos;
+    int fargsCount;
+    farg* fargs;
 } var;
 typedef struct _valu{
     char value[101];
@@ -273,6 +276,7 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
     if(posP != NULL){
         *posP = pos;
     }
+    free(vals);
     return true;
 }
 
@@ -755,10 +759,10 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
     *posi = pos;
 }
 
-bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int bracketsDepthToDelete, char *pretype){
+bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int bracketsDepthToDelete, char *pretype, bool isF){
     if(withKeyword){
         bool isCustomKW = false;
-        if(tokLen > pos+1 && strcmp(tokens[pos+1].type, "keyword_custom") == 0){
+        if(tokLen > pos+1 && (strcmp(tokens[pos+1].type, "keyword_custom") == 0 || strcmp(tokens[pos+1].type, "function_custom") == 0)){
             isCustomKW = true;
         }
         if(!isCustomKW){
@@ -849,7 +853,89 @@ bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int brackets
     if(withKeyword == true){
         pos++;
     }
-    
+    if(isF == true){
+        vars[varLen-1].isFunc = true;
+        pos++;
+        while (pos < tokLen)
+        {
+            // //-------------------var--------------------
+            // if(strcmp(tokens[pos].type, "keyword") == 0 && strcmp(tokens[pos].value, "var") == 0){
+            //     bool b = createVar(pos, &pos, true, NULL, openedBracketsShaped, NULL, false);
+            //     if(!b){
+            //         return false;
+            //     }
+            // }
+            // //-------------------all keywords-------------------
+            // else if(strcmp(tokens[pos].type, "keyword") == 0){
+            //     bool b = createVar(pos, &pos, true, tokens[pos].value, openedBracketsShaped, NULL, false);
+            //     if(!b){
+            //         return false;
+            //     }
+            // }
+            // else if(strcmp(tokens[pos].type, "keyword_custom") == 0){
+            //     bool exists = false;
+            //     int index = 0;
+            //     for (int i = 0; i < varLen; i++) {
+            //         if (strcmp(vars[i].name, tokens[pos].value) == 0) {
+            //             exists = true;
+            //             index = i;
+            //             break;
+            //         }
+            //     }
+            //     if(exists == false){
+            //         printf("Variable %s already exists\n", tokens[pos].value);
+            //         return false;
+            //     }
+            //     else{
+            //         pos--;
+            //         bool b = createVar(pos, &pos, false, NULL, openedBracketsShaped, NULL, false);
+            //         if(!b){
+            //             return false;
+            //         }
+            //     }
+            // }
+            //-------------------var--------------------
+            if(strcmp(tokens[pos].type, "keyword") == 0 && strcmp(tokens[pos].value, "var") == 0){
+                vars[varLen-1].fargsCount++;
+                if(vars[varLen-1].fargsCount <= 1){
+                    vars[varLen-1].fargs = malloc(sizeof(farg));
+                }
+                else{
+                    vars[varLen-1].fargs = realloc(vars[varLen-1].fargs, sizeof(farg)*vars[varLen-1].fargsCount);
+                }
+            }
+            //-------------------all keywords-------------------
+            else if(strcmp(tokens[pos].type, "keyword") == 0){
+                bool b = createVar(pos, &pos, true, tokens[pos].value, openedBracketsShaped, NULL, false);
+                if(!b){
+                    return false;
+                }
+            }
+            else if(strcmp(tokens[pos].type, "keyword_custom") == 0){
+                bool exists = false;
+                int index = 0;
+                for (int i = 0; i < varLen; i++) {
+                    if (strcmp(vars[i].name, tokens[pos].value) == 0) {
+                        exists = true;
+                        index = i;
+                        break;
+                    }
+                }
+                if(exists == false){
+                    printf("Variable %s already exists\n", tokens[pos].value);
+                    return false;
+                }
+                else{
+                    pos--;
+                    bool b = createVar(pos, &pos, false, NULL, openedBracketsShaped, NULL, false);
+                    if(!b){
+                        return false;
+                    }
+                }
+            }
+        }
+        
+    }
     *posi = pos;
     return true;
 }
@@ -1449,39 +1535,68 @@ bool parse(){
     while(pos<len){
         //-------------------print--------------------
         if(strncmp(tokens[pos].type, "function", 9) == 0 && strncmp(tokens[pos].value, "print", 6) == 0 || strncmp(tokens[pos].value, "println", 6) == 0){
-            int p = pos;
-            if(tokLen <= pos+1){
-                printf("Unexpected function invoke, expected (\n");
-                return false;
-            }
-            else if(tokLen <= pos+2){
-                printf("Unexpected end of line, expected value for %s\n", tokens[p].value);
-                return false;
-            }
-            
-            valu val;
+            if(build == false){
+                int p = pos;
+                if(tokLen <= pos+1){
+                    printf("Unexpected function invoke, expected (\n");
+                    return false;
+                }
+                else if(tokLen <= pos+2){
+                    printf("Unexpected end of line, expected value for %s\n", tokens[p].value);
+                    return false;
+                }
+                
+                valu val;
 
-            if(getValue(pos+2, &pos, &val, false) == false){
-                printf("Error getting value for print\n");
-                return false;
+                if(getValue(pos+2, &pos, &val, false) == false){
+                    printf("Error getting value for print\n");
+                    return false;
+                }
+                if(strcmp(tokens[pos].type, "bracket)") != 0){
+                    printf("Unexpected end of function print, expected )\n");
+                    return false;
+                }
+                if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
+                    printf("%s", val.value);
+                }
+                else if(strcmp(val.type, "int") == 0 || strcmp(val.type, "float") == 0){
+                    printf("%Lg", val.val);
+                }
+                else if(strcmp(val.type, "null") == 0){
+                    printf("nulltype");
+                }
+                if(strcmp(tokens[p].value, "println") == 0){
+                    printf("\n");
+                }
+                pos++;
             }
-            if(strcmp(tokens[pos].type, "bracket)") != 0){
-                printf("Unexpected end of function print, expected )\n");
-                return false;
-            }
-            if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
-                printf("%s", val.value);
-            }
-            else if(strcmp(val.type, "int") == 0 || strcmp(val.type, "float") == 0){
-                printf("%Lg", val.val);
-            }
-            else if(strcmp(val.type, "null") == 0){
-                printf("nulltype");
-            }
-            if(strcmp(tokens[p].value, "println") == 0){
-                printf("\n");
-            }
-            pos++;
+            else{
+                if(forceBuild == false){
+                    int p = pos;
+                    if(tokLen <= pos+1){
+                        printf("Unexpected function invoke, expected (\n");
+                        return false;
+                    }
+                    else if(tokLen <= pos+2){
+                        printf("Unexpected end of line, expected value for %s\n", tokens[p].value);
+                        return false;
+                    }
+                    
+                    valu val;
+                    if(getValue(pos+2, &pos, &val, false) == false){
+                        printf("Error getting value for print\n");
+                        return false;
+                    }
+                    pos++;
+                }
+                else{
+                    int p = pos;
+                    
+                    valu val;
+                    getValue(pos+2, &pos, &val, false);
+                    pos++;
+                }
+            }   
         }
         else if(strcmp(tokens[pos].type, "function_custom") == 0){
             int p = pos;
@@ -1489,15 +1604,40 @@ bool parse(){
                 printf("Unexpected function invoke, expected (\n");
                 return false;
             }
-            else if(tokLen <= pos+2){
-                printf("Unexpected end of line, expected value for %s\n", tokens[p].value);
-                return false;
+            int vvp = -1;
+            for (int i = 0; i < varLen; i++)
+            {
+                if(strcmp(vars[i].name, tokens[pos].value) == 0){
+                    if(vars[i].isFunc == false){
+                        printf("%s is not a function\n", vars[i].name);
+                        return false;
+                    }
+                    vvp = i;
+                }
+            }
+            if(vvp == -1){
+                pos--;
+                if(strcmp(varT, "") == 0){
+                    bool b = createVar(pos, &pos, false, NULL, openedBracketsShaped-1, NULL, true);
+                    if(!b){
+                        return false;
+                    }
+                }
+                else{
+                    bool b = createVar(pos, &pos, false, NULL, openedBracketsShaped-1, varT, true);
+                    strcpy(varT, "");
+                    if(!b){
+                        return false;
+                    }
+                }
+                // printf("Can't find function or variable with name %s\n", tokens[pos].value);
+                // return false;
             }
             
             valu val;
 
             if(getValue(pos+2, &pos, &val, false) == false){
-                printf("Error getting value for print\n");
+                printf("Error getting value for %s\n", tokens[p].value);
                 return false;
             }
         }
@@ -1656,24 +1796,41 @@ bool parse(){
         }
         //-------------------var--------------------
         else if(strcmp(tokens[pos].type, "keyword") == 0 && strcmp(tokens[pos].value, "var") == 0){
-            bool b = createVar(pos, &pos, true, NULL, openedBracketsShaped-1, NULL);
+            bool b = createVar(pos, &pos, true, NULL, openedBracketsShaped-1, NULL, false);
             if(!b){
                 return false;
             }
         }
         //-------------------all keywords-------------------
         else if(strcmp(tokens[pos].type, "keyword") == 0){
-            if(strcmp(varT, "") == 0){
-                bool b = createVar(pos, &pos, true, tokens[pos].value, openedBracketsShaped-1, NULL);
-                if(!b){
-                    return false;
+            if(strcmp(tokens[pos+1].type, "keyword_custom") == 0){
+                if(strcmp(varT, "") == 0){
+                    bool b = createVar(pos, &pos, true, tokens[pos].value, openedBracketsShaped-1, NULL, false);
+                    if(!b){
+                        return false;
+                    }
+                }
+                else{
+                    bool b = createVar(pos, &pos, true, tokens[pos].value, openedBracketsShaped-1, varT, false);
+                    strcpy(varT, "");
+                    if(!b){
+                        return false;
+                    }
                 }
             }
-            else{
-                bool b = createVar(pos, &pos, true, tokens[pos].value, openedBracketsShaped-1, varT);
-                strcpy(varT, "");
-                if(!b){
-                    return false;
+            else if(strcmp(tokens[pos+1].type, "function_custom") == 0){
+                if(strcmp(varT, "") == 0){
+                    bool b = createVar(pos, &pos, true, tokens[pos].value, openedBracketsShaped-1, NULL, true);
+                    if(!b){
+                        return false;
+                    }
+                }
+                else{
+                    bool b = createVar(pos, &pos, true, tokens[pos].value, openedBracketsShaped-1, varT, true);
+                    strcpy(varT, "");
+                    if(!b){
+                        return false;
+                    }
                 }
             }
         }
@@ -1715,13 +1872,13 @@ bool parse(){
             else{
                 pos--;
                 if(strcmp(varT, "") == 0){
-                    bool b = createVar(pos, &pos, false, NULL, openedBracketsShaped-1, NULL);
+                    bool b = createVar(pos, &pos, false, NULL, openedBracketsShaped-1, NULL, false);
                     if(!b){
                         return false;
                     }
                 }
                 else{
-                    bool b = createVar(pos, &pos, false, NULL, openedBracketsShaped-1, varT);
+                    bool b = createVar(pos, &pos, false, NULL, openedBracketsShaped-1, varT, false);
                     strcpy(varT, "");
                     if(!b){
                         return false;
