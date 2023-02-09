@@ -6,12 +6,15 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <ctype.h>
-#define ArrLeng(x)  (sizeof(x) / sizeof((x)[0]))
 #include <stdbool.h>
 #include <time.h>
 
+#define ArrLeng(x)  (sizeof(x) / sizeof((x)[0]))
+
 #define C_LANG 1
 
+#define MAX_VALUES 256
+#define MAX_COMMAND_LENGTH 512
 
 #pragma region Random
 
@@ -91,7 +94,7 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
     if(toZeroBrackets == true){
         bracketsRoC = 1;
     }
-    valu vals[10];
+    valu vals[MAX_VALUES];
     int count = 0;
     while(pos < tokLen){
         if(strcmp(tokens[pos].type, "bracket(") == 0){
@@ -208,9 +211,7 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
         if(count > 1){
             for(int i = 0; i < count; i++){
                 if(strcmp(vals[i].type, "operator") == 0){
-                    
                     if(i > 0){
-                        
                         if(strcmp(vals[i].operatorType, "add") == 0){
                             if(strcmp(vals[i-1].type, "string") == 0 || strcmp(vals[i-1].type, "char") == 0){
                                 if(strcmp(vals[i+1].type, "int") == 0 || strcmp(vals[i+1].type, "float") == 0){
@@ -234,7 +235,7 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
                                     strcpy(vals[i+1].type, vals[i-1].type);
                                 }
                             }
-                            i+=2;
+                            i++;
                         }
                         else if(strcmp(vals[i].operatorType, "sub") == 0){
                             
@@ -253,7 +254,7 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
                                 }
                                 strcpy(vals[i+1].type, vals[i-1].type);
                             }
-                            i+=2;
+                            i++;
                         }
                     }
                     else{
@@ -944,8 +945,8 @@ bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int brackets
     *posi = pos;
     return true;
 }
-void tokenize(){
-    const int length = strlen(codes);
+void tokenize(char* code){
+    const int length = strlen(code);
     int pos = 0;
     //i8 - int 8
     //i16 - int 16
@@ -976,7 +977,7 @@ void tokenize(){
     int line = 1;
     int column = 0;
     while(pos<length){
-        char currentChar = codes[pos];
+        char currentChar = code[pos];
         if(currentChar == ' '){
             pos++;
             column++;
@@ -993,12 +994,12 @@ void tokenize(){
             char res[101] = "";
             pos++;
             column++;
-            while(codes[pos] != '\"' && pos < length){
-                strncat(res, &codes[pos], 1);
+            while(code[pos] != '\"' && pos < length){
+                strncat(res, &code[pos], 1);
                 pos++;
                 column++;
             }
-            if(codes[pos] != '\"'){
+            if(code[pos] != '\"'){
                 printf("Unterminated string at line %d column %d\n", line, column);
                 pos++;
                 continue;
@@ -1023,14 +1024,14 @@ void tokenize(){
             pos++;
             column++;
             int leng = 0;
-            while(codes[pos] != '\'' && pos < length){
+            while(code[pos] != '\'' && pos < length){
                 leng ++;
-                res = codes[pos];
+                res = code[pos];
                 pos++;
                 column++;
             }
             
-            if(codes[pos] != '\''){
+            if(code[pos] != '\''){
                 printf("Unterminated char at line %d column %d\n", line, column);
                 pos++;
                 continue;
@@ -1112,17 +1113,17 @@ void tokenize(){
             int digitsAfterDot = -1;
             int zerosCount = 0;
             while(isNum && pos < length){
-                if(!isdigit(codes[pos]) || codes[pos] == ' ' || codes[pos] == 'n' || codes[pos] == '\r'){
-                    if(codes[pos] != '.'){
-                        //if(codes[pos] != 'd' || codes[pos] != 'l'){
-                        if(codes[pos] != '@'){
+                if(!isdigit(code[pos]) || code[pos] == ' ' || code[pos] == 'n' || code[pos] == '\r'){
+                    if(code[pos] != '.'){
+                        //if(code[pos] != 'd' || code[pos] != 'l'){
+                        if(code[pos] != '@'){
                             isNum = false;
                             break;
                         }
-                        // else if(codes[pos] == 'd'){
+                        // else if(code[pos] == 'd'){
                         //    isDouble = 1;
                         // }
-                        // else if(codes[pos] == 'l'){
+                        // else if(code[pos] == 'l'){
                         //    isDouble = 2;
                         // }
                         else{
@@ -1141,14 +1142,14 @@ void tokenize(){
 
                     }
                 }
-                else if(codes[pos] == '0' && digitsAfterDot > 0){
+                else if(code[pos] == '0' && digitsAfterDot > 0){
                     zerosCount++;
                 }
                 else{
                     zerosCount = 0;
                 }
                 
-                strncat(res, &codes[pos], 1);
+                strncat(res, &code[pos], 1);
                 pos++;
                 column++;
                 if(digitsAfterDot > -1){
@@ -1206,44 +1207,44 @@ void tokenize(){
                 int brackets = 0;
                 while(isInclude && pos<length){
                    for (int i = 0; i < ArrLeng(varChars); i++) {
-                        if (varChars[i] == codes[pos] || isdigit(codes[pos])) {
+                        if (varChars[i] == code[pos] || isdigit(code[pos])) {
                             isInclude = true;
-                            strncat(res, &codes[pos], 1);
+                            strncat(res, &code[pos], 1);
                             pos++;
                             column++;
                             break;
                         }
-                        else if(codes[pos] == '('){
+                        else if(code[pos] == '('){
                             isFunc = true;
                             pos++;
                             column++;
                             goto gt1;
                         }
-                        else if(codes[pos] == '['){
+                        else if(code[pos] == '['){
                             brackets = 1;
                             pos++;
                             column++;
                             goto gt1;
                         }
-                        else if(codes[pos] == '{'){
+                        else if(code[pos] == '{'){
                             brackets = 2;
                             pos++;
                             column++;
                             goto gt1;
                         }
-                        // else if(codes[pos] == ')'){
+                        // else if(code[pos] == ')'){
                         //     brackets = 3;
                         //     pos++;
                         //     column++;
                         //     goto gt1;
                         // }
-                        // else if(codes[pos] == ']'){
+                        // else if(code[pos] == ']'){
                         //     brackets = 4;
                         //     pos++;
                         //     column++;
                         //     goto gt1;
                         // }
-                        // else if(codes[pos] == '}'){
+                        // else if(code[pos] == '}'){
                         //     brackets = 5;
                         //     pos++;
                         //     column++;
@@ -1360,7 +1361,7 @@ void tokenize(){
             else if(currentChar == '='){
                 pos++;
                 column++;
-                if(codes[pos] != '='){
+                if(code[pos] != '='){
                     if(tokLen > 0){
                         tokens = realloc(tokens, (tokLen+1)*sizeof(token));
                     }
@@ -1392,7 +1393,7 @@ void tokenize(){
             else if(currentChar == '>'){
                 pos++;
                 column++;
-                if(codes[pos] == '='){
+                if(code[pos] == '='){
                     pos++;
                     column++;
                     if(tokLen > 0){
@@ -1424,7 +1425,7 @@ void tokenize(){
             else if(currentChar == '<'){
                 pos++;
                 column++;
-                if(codes[pos] == '='){
+                if(code[pos] == '='){
                     pos++;
                     column++;
                     if(tokLen > 0){
@@ -1456,7 +1457,7 @@ void tokenize(){
             else if(currentChar == '!'){
                 pos++;
                 column++;
-                if(codes[pos] == '='){
+                if(code[pos] == '='){
                     pos++;
                     column++;
                     if(tokLen > 0){
@@ -1488,7 +1489,7 @@ void tokenize(){
             else if(currentChar == '&'){
                 pos++;
                 column++;
-                if(codes[pos] == '&'){
+                if(code[pos] == '&'){
                     pos++;
                     column++;
                     if(tokLen > 0){
@@ -1507,7 +1508,7 @@ void tokenize(){
             else if(currentChar == '|'){
                 pos++;
                 column++;
-                if(codes[pos] == '|'){
+                if(code[pos] == '|'){
                     pos++;
                     column++;
                     if(tokLen > 0){
@@ -1524,7 +1525,7 @@ void tokenize(){
                 }
             }
             else{
-                printf("Unexpected character %c at line %d column %d\n", codes[pos], line, column);
+                printf("Unexpected character %c at line %d column %d\n", code[pos], line, column);
 
             }
         }
@@ -1900,7 +1901,7 @@ bool parse(){
     return true;
 }
 void run(){
-    tokenize();
+    tokenize(codes);
     parse();
 }
 
@@ -1973,6 +1974,20 @@ int main(int argc, char* argv[]){
         
         //printf("Welcome to the Puffin language v. 0.0.2!\nCreated by Dizabanik\n");
         
+        
+    }
+    else{
+        printf("To exit type exit() or press CTRL + C\n");
+        char comm[MAX_COMMAND_LENGTH] = "";
+        printf(">>> ");
+        scanf("%s",comm);
+        while (strcmp(comm, "exit()") != 0)
+        {
+            tokenize(comm);
+            parse();
+            printf("\n>>> ");
+            scanf("%s",comm);
+        }
         
     }
     // for (int i = 0; i < varLen; i++)
