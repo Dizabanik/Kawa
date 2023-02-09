@@ -1857,15 +1857,29 @@ bool parse(){
                 if(tokLen > pos+2){
                     if(strcmp(tokens[pos+1].type, "operator") == 0){
                         if(strcmp(tokens[pos+1].value, "eq") == 0){
-                            if(strcmp(vars[index].subtype, "") == 0 || vars[index].subtype == NULL || strcmp(vars[index].subtype, "mut") == 0){
-                                valu val;
-                                if(getValue(pos+2, &pos, &val, false) != true){
-                                    printf("Error getting value\n");
-                                }
-                                vars[index].val = val.val;
-                                strcpy(vars[index].value, val.value);
+                            if(strcmp(vars[index].subtype, "") == 0 || vars[index].subtype == NULL || strcmp(vars[index].subtype, "mut") == 0 || strcmp(vars[index].subtype, "ft\\eq") == 0){
+                                
+                                
                                 if(strcmp(vars[index].subtype, "mut") == 0){
+                                    valu val;
+                                    if(getValue(pos+2, &pos, &val, false) != true){
+                                        printf("Error getting value\n");
+                                    }
                                     strcpy(vars[index].type, val.type);
+                                    vars[index].val = val.val;
+                                    strcpy(vars[index].value, val.value);
+                                }
+                                else{
+                                    if(strcmp(vars[index].type, "int") == 0 || strcmp(vars[index].type, "float") == 0){
+                                        vars[index].val = getVarVal(pos+2, &pos, false);
+                                    }
+                                    else if(strcmp(vars[index].type, "string") == 0){
+                                        strcpy(vars[index].value, getVarValue(pos+2, &pos, false));
+                                    }
+                                    else if(strcmp(vars[index].type, "char") == 0){
+                                        strcpy(vars[index].value, " ");
+                                        vars[index].value[0] = getVarValue(pos+2, &pos, false)[0];
+                                    }
                                 }
                             }
                             else{
