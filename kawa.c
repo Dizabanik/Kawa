@@ -1625,7 +1625,20 @@ bool parse(){
                         }
                     }
                     else{
-
+                        if(arg[i].isTrue == true){
+                            result = true;
+                            i++;
+                        }
+                        else{
+                            if(arg[i-1].isTrue == true){
+                                result = true;
+                                i++;
+                            }
+                            else{
+                                result = false;
+                                break;
+                            }
+                        }
                     }
                 }
             }
