@@ -15,6 +15,12 @@
 
 #define MAX_VALUES 256
 #define MAX_COMMAND_LENGTH 512
+#define MAX_ARGS 128
+#define MAX_STR_LENGTH 101
+
+#define ARG_UNDEFINED 0
+#define ARG_FALSE 1
+#define ARG_TRUE 2
 
 #pragma region Random
 
@@ -26,6 +32,7 @@ bool here = false;
 bool debug = false;
 bool forceBuild = false;
 FILE *fp;
+uint_fast8_t lastArg = ARG_UNDEFINED;
 typedef struct _argument{
     bool isTrue;
     bool isNeeded;
@@ -126,7 +133,7 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
             }
         }
         else if(strcmp(tokens[pos].type, "keyword_custom") == 0){
-            count ++;
+            
             // if(count == 1){
             //     vals = malloc(sizeof(valu));
             // }
@@ -136,6 +143,7 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
             bool isT = false;
             for(int i = 0; i < varLen; i ++){
                 if(strcmp(vars[i].name, tokens[pos].value) == 0){
+                    count ++;
                     vals[count-1].val = vars[i].val;
                     strcpy(vals[count-1].value, vars[i].value);
                     strcpy(vals[count-1].type, vars[i].type);
@@ -145,7 +153,7 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
                 }
             }
             if(isT == false){
-                printf("Variable %s not found\n", tokens[pos].value);
+                // printf("Variable %s not found\n", tokens[pos].value);
                 break;
             }
             pos++;
@@ -211,6 +219,7 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
         if(count > 1){
             for(int i = 0; i < count; i++){
                 if(strcmp(vals[i].type, "operator") == 0){
+                    
                     if(i > 0){
                         if(strcmp(vals[i].operatorType, "add") == 0){
                             if(strcmp(vals[i-1].type, "string") == 0 || strcmp(vals[i-1].type, "char") == 0){
@@ -290,275 +299,153 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
 char* getVarValue(int pos, int* posP, bool toZeroBrackets){
     valu val;
     getValue(pos, posP, &val, toZeroBrackets);
-    return val.value;
-}
-long double getVarVal(int pos, int* posP, bool toZeroBrackets){
-    int bracketsRoC = 0;
-    int bracketsShC = 0;
-    int bracketsSqC = 0;
-    if(toZeroBrackets == true){
-        bracketsRoC = 1;
-    }
-    valu* vals;
-    int count = 0;
-    while(pos < tokLen){
-        if(strcmp(tokens[pos].type, "bracket(") == 0){
-            bracketsRoC++;
-            count ++;
-            if(count == 1){
-                vals = malloc(sizeof(valu));
-            }
-            else{
-                vals = realloc(vals, count * sizeof(valu));
-            }
-            vals[count-1].val = getVarVal(pos+1, &pos, true);
-            strcpy(vals[count-1].type, "float");
-            pos++;
-        }
-        else if(strcmp(tokens[pos].type, "bracket)") == 0){
-            if(bracketsRoC <= 0){
-                break;
-            }
-            bracketsRoC--;
-            pos++;
-            if(toZeroBrackets == true){
-                if(bracketsRoC == 0){
-                    break;
-                }
-            }
-        }
-        else if(strcmp(tokens[pos].type, "keyword_custom") == 0){
-            count ++;
-            if(count == 1){
-                vals = malloc(sizeof(valu));
-            }
-            else{
-                vals = realloc(vals, count * sizeof(valu));
-            }
-            bool isT = false;
-            for(int i = 0; i < varLen; i ++){
-                if(strcmp(vars[i].name, tokens[pos].value) == 0){
-                    vals[count-1].val = vars[i].val;
-                    strcpy(vals[count-1].value, vars[i].value);
-                    strcpy(vals[count-1].type, vars[i].type);
-                    
-                    isT = true;
-                    break;
-                }
-            }
-            if(isT == false){
-                printf("Variable %s not found\n", tokens[pos].value);
-                break;
-            }
-            pos++;
-        }
-        else if(strcmp(tokens[pos].type, "int") == 0 || strcmp(tokens[pos].type, "float") == 0){
-            count ++;
-            if(count == 1){
-                vals = malloc(sizeof(valu));
-            }
-            else{
-                vals = realloc(vals, count * sizeof(valu));
-            }
-            vals[count-1].val = tokens[pos].val;
-            strcpy(vals[count-1].type, tokens[pos].type);
-            pos++;
-        }
-        else if(strcmp(tokens[pos].type, "string") == 0){
-            count ++;
-            if(count == 1){
-                vals = malloc(sizeof(valu));
-            }
-            else{
-                vals = realloc(vals, count * sizeof(valu));
-            }
-            
-            // strcpy(vals[count-1].value, tokens[pos].value);
-            vals[count-1].val = strtold(tokens[pos].value, NULL);
-            strcpy(vals[count-1].type, tokens[pos].type);
-            
-            pos++;
-        }
-        else if(strcmp(tokens[pos].type, "char") == 0){
-            count ++;
-            if(count == 1){
-                vals = malloc(sizeof(valu));
-            }
-            else{
-                vals = realloc(vals, count * sizeof(valu));
-            }
-            strcpy(vals[count-1].value, " ");
-            vals[count-1].value[0] = tokens[pos].value[0];
-            strcpy(vals[count-1].type, tokens[pos].type);
-            pos++;
-        }
-        else if(strcmp(tokens[pos].type, "operator") == 0){
-            count ++;
-            if(count == 1){
-                vals = malloc(sizeof(valu));
-            }
-            else{
-                vals = realloc(vals, count * sizeof(valu));
-            }
-            strncpy(vals[count-1].operatorType, tokens[pos].value, 5);
-            strcpy(vals[count-1].type, tokens[pos].type);
-            
-            pos++;
-        }
-        else{
-            break;
-        }
-    }
-    long double ret = 0;
-    if(count > 0){
-        if(count > 1){
-            for(int i = 0; i < count; i++){
-                if(strcmp(vals[i].type, "operator") == 0){
-                    if(i > 0){
-                        if(strcmp(vals[i].operatorType, "add") == 0){
-                            // vals[i].val = vals[i-1].val + vals[i].val;
-                            vals[i+1].val = vals[i-1].val + vals[i+1].val;
-                            i+=2;
-                        }
-                        else if(strcmp(vals[i].operatorType, "sub") == 0){
-                            vals[i+1].val = vals[i-1].val - vals[i+1].val;
-                            i+=2;
-                        }
-                    }
-                    else{
-                        printf("Unexpected operator: %s\n", vals[i].operatorType);
-                    }
-                }
-                else if(strcmp(vals[i].type, "bracket(") == 0){
-                    
-                }
-                
-            }
-            ret = vals[count-1].val;
-        }
-        else{
-            ret = vals[0].val;
-        }
-    }
-    
-    if(posP != NULL){
-        *posP = pos;
-    }
-    return ret;
-}
-
-
-bool getArgument(argument* arg, int posI, int* posP){
-    valu val;
-    int pos = posI;
-    getValue(pos, &pos, &val, false);
-    if(strcmp(val.type, "int") == 0 || strcmp(val.type, "float") == 0){
-        if(strcmp(tokens[pos].type, "operator") == 0){
-            if(strcmp(tokens[pos].value, "==") == 0){
-                if(val.val == getVarVal(pos+1, &pos, false)){
-                    arg->isTrue = true;
-                }
-                else{
-                    arg->isTrue = false;
-                }
-            }
-            else if(strcmp(tokens[pos].value, "!=") == 0){
-                
-                if(val.val == getVarVal(pos+1, &pos, false)){
-                    arg->isTrue = false;
-                }
-                else{
-                    arg->isTrue = true;
-                    
-                }
-            }
-            else if(strcmp(tokens[pos].value, ">") == 0){
-                if(val.val > getVarVal(pos+1, &pos, false)){
-                    arg->isTrue = true;
-                }
-                else{
-                    arg->isTrue = false;
-                }
-            }
-            else if(strcmp(tokens[pos].value, "<") == 0){
-                if(val.val < getVarVal(pos+1, &pos, false)){
-                    arg->isTrue = true;
-                }
-                else{
-                    arg->isTrue = false;
-                }
-            }
-            else if(strcmp(tokens[pos].value, "<=") == 0){
-                if(val.val <= getVarVal(pos+1, &pos, false)){
-                    arg->isTrue = true;
-                }
-                else{
-                    arg->isTrue = false;
-                }
-            }
-            else if(strcmp(tokens[pos].value, ">=") == 0){
-                if(val.val >= getVarVal(pos+1, &pos, false)){
-                    arg->isTrue = true;
-                }
-                else{
-                    arg->isTrue = false;
-                }
-            }
-        }
+    if(strcmp(val.type, "float") == 0 || strcmp(val.type, "int") == 0){
+        char strc[MAX_STR_LENGTH] = "";
+        sprintf(strc, "%Lg", val.val);
+        return strc;
     }
     else if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
-        if(strcmp(tokens[pos].type, "operator") == 0){
-            if(strcmp(tokens[pos].value, "==") == 0){
-                if(strcmp(val.value, getVarValue(pos+1, &pos, false)) == 0){
-                    arg->isTrue = true;
-                }
-                else{
-                    arg->isTrue = false;
-                }
+        return val.value;
+    }
+}
+long double getVarVal(int pos, int* posP, bool toZeroBrackets){
+    valu val;
+    getValue(pos, posP, &val, toZeroBrackets);
+    if(strcmp(val.type, "float") == 0 || strcmp(val.type, "int") == 0){
+        return val.val;
+    }
+    else if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
+        return strtold(val.value, NULL);
+    }
+}
+
+bool compareVals(valu* val1, valu* val2, char* operator){
+    if(strcmp(val1->type, "int") == 0 || strcmp(val1->type, "float") == 0){
+        if(strcmp(val2->type, "string") == 0 || strcmp(val2->type, "char") == 0){
+            val1->val = strtold(val2->value, NULL);
+        }
+        if(strcmp(operator, "==") == 0){
+            if(val1->val == val2->val){
+                return true;
             }
-            else if(strcmp(tokens[pos].value, "!=") == 0){
-                if(strcmp(val.value, getVarValue(pos+1, &pos, false)) != 0){
-                    arg->isTrue = false;
-                }
-                else{
-                    arg->isTrue = true;
-                }
-            }
-            else if(strcmp(tokens[pos].value, ">") == 0){
-                if(strtold(val.value, NULL) > getVarVal(pos+1, &pos, false)){
-                    arg->isTrue = true;
-                }
-                else{
-                    arg->isTrue = false;
-                }
-            }
-            else if(strcmp(tokens[pos].value, "<") == 0){
-                if(strtold(val.value, NULL) < getVarVal(pos+1, &pos, false)){
-                    arg->isTrue = true;
-                }
-                else{
-                    arg->isTrue = false;
-                }
-            }
-            else if(strcmp(tokens[pos].value, "<=") == 0){
-                if(strtold(val.value, NULL) <= getVarVal(pos+1, &pos, false)){
-                    arg->isTrue = true;
-                }
-                else{
-                    arg->isTrue = false;
-                }
-            }
-            else if(strcmp(tokens[pos].value, ">=") == 0){
-                if(strtold(val.value, NULL) >= getVarVal(pos+1, &pos, false)){
-                    arg->isTrue = true;
-                }
-                else{
-                    arg->isTrue = false;
-                }
+            else{
+                return false;
             }
         }
+        else if(strcmp(operator, "!=") == 0){
+            if(val1->val == val2->val){
+                return false;
+            }
+            else{
+                return true;
+            }
+        }
+        else if(strcmp(operator, ">=") == 0){
+            if(val1->val >= val2->val){
+                return true;
+            }
+            else{
+                return false;
+            }
+        }
+        else if(strcmp(operator, "<=") == 0){
+            if(val1->val <= val2->val){
+                return true;
+            }
+            else{
+                return false;
+            }
+        }
+        else if(strcmp(operator, ">") == 0){
+            if(val1->val > val2->val){
+                return true;
+            }
+            else{
+                return false;
+            }
+        }
+        else if(strcmp(operator, "<") == 0){
+            if(val1->val < val2->val){
+                return true;
+            }
+            else{
+                return false;
+            }
+        }
+        else{
+            printf("Unexpected operator %s\n", operator);
+            return false;
+        }
     }
-    return true;
+    else if(strcmp(val1->type, "string") == 0 || strcmp(val1->type, "char") == 0){
+        if(strcmp(val2->type, "int") == 0 || strcmp(val2->type, "float") == 0){
+            sprintf(val2->value, "%Lg", val2->val);
+        }
+        if(strcmp(operator, "==") == 0){
+            if(strcmp(val1->value, val2->value) == 0){
+                return true;
+            }
+            else{
+                return false;
+            }
+        }
+        else if(strcmp(operator, "!=") == 0){
+            if(strcmp(val1->value, val2->value) != 0){
+                return true;
+            }
+            else{
+                return false;
+            }
+        }
+        else if(strcmp(operator, ">=") == 0){
+            if(strlen(val1->value) >= strlen(val2->value)){
+                return true;
+            }
+            else{
+                return false;
+            }
+        }
+        else if(strcmp(operator, "<=") == 0){
+            if(strlen(val1->value) <= strlen(val2->value)){
+                return true;
+            }
+            else{
+                return false;
+            }
+        }
+        else if(strcmp(operator, ">") == 0){
+            if(strlen(val1->value) > strlen(val2->value)){
+                return true;
+            }
+            else{
+                return false;
+            }
+        }
+        else if(strcmp(operator, "<") == 0){
+            if(strlen(val1->value) < strlen(val2->value)){
+                return true;
+            }
+            else{
+                return false;
+            }
+        }
+        else{
+            printf("Unexpected operator %s\n", operator);
+            return false;
+        }
+    }
+}
+
+bool getArgument(int posI, int* posP){
+    valu val;
+    valu val2;
+    int pos = posI;
+    getValue(pos, &pos, &val, false);
+    int pos2 = pos;
+    getValue(pos+1, &pos, &val2, false);
+    bool result = compareVals(&val, &val2, tokens[pos2].value);
+    *posP = pos;
+    return result;
 }
 
 bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSubtype, bool withOper){
@@ -983,6 +870,11 @@ void tokenize(char* code){
             column++;
             continue;
         }
+        else if(currentChar == ';'){
+            pos++;
+            column++;
+            continue;
+        }
         else if (currentChar == '\n' || currentChar == '\r')
         {
             line++;
@@ -1358,6 +1250,35 @@ void tokenize(char* code){
                 // }
                 isFunc = false;
             }
+            else if(currentChar == '/'){
+                pos++;
+                column++;
+                if(code[pos] == '/'){
+                    pos++;
+                    column++;
+                    while(pos < length && code[pos] != '\n'){
+                        pos++;
+                        column++;
+                    }
+                    line++;
+                    column = 0;
+                    pos++;
+                    continue;
+                }
+                else{
+                    if(tokLen > 0){
+                        tokens = realloc(tokens, (tokLen+1)*sizeof(token));
+                    }
+                    else{
+                        tokens = calloc(1, sizeof(token));
+                    }
+                    //tokens[tokLen-1].type = calloc(1,1);
+                    //tokens[tokLen-1].value = calloc(1,1);
+                    tokLen++;
+                    strncpy(tokens[tokLen-1].type, "operator", 15);
+                    strncpy(tokens[tokLen-1].value, "/", 6);
+                }
+            }
             else if(currentChar == '='){
                 pos++;
                 column++;
@@ -1649,6 +1570,7 @@ bool parse(){
         }
         //----------------------if statement--------------------------
         else if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "if") == 0){
+            lastArg = ARG_UNDEFINED;
             if(tokLen <= pos+1){
                 printf("Unexpected statement start, expected (\n");
                 return false;
@@ -1663,103 +1585,82 @@ bool parse(){
                 return false;
             }
             int brackets = 1;
-            int argsCount = 1;  
-            argument* arg;
-            arg = malloc(sizeof(argument));
-            arg[argsCount-1].isNeeded = true;
-            getArgument(&arg[argsCount-1], pos, &pos);
-
+            int argsCount = 1;
+            argument arg[MAX_ARGS];
+            //arg[argsCount-1].isNeeded = true;
+            arg[argsCount-1].isTrue = getArgument(pos, &pos);
             while(brackets > 0 && tokLen > pos){
                 if(strcmp(tokens[pos].type, "bracket(") == 0){
                     brackets++;
+                    pos++;
                 }
                 else if(strcmp(tokens[pos].type,"bracket)") == 0){
                     brackets--;
+                    pos++;
                 }
                 if(strcmp(tokens[pos].type, "operator") == 0){
                     if(strcmp(tokens[pos].value, "&&") == 0){
-                        if(tokLen <= pos+1){
-                            printf("Not enough arguments in statement after && operator\n");
-                            return false;
-                        }
+                        arg[argsCount].isTrue = getArgument(pos+1, &pos);
+                        arg[argsCount].isNeeded = true;
                         argsCount++;
-                        arg = realloc(arg, sizeof(argument) * argsCount);
-                        arg[argsCount-1].isNeeded = true;
-                        getArgument(&arg[argsCount-1], pos, &pos);
                     }
                     else if(strcmp(tokens[pos].value, "||") == 0){
-                        if(tokLen <= pos+1){
-                            printf("Not enough arguments in statement after || operator\n");
-                            return false;
-                        }
+                        arg[argsCount].isTrue = getArgument(pos+1, &pos);
+                        arg[argsCount].isNeeded = false;
                         argsCount++;
-                        arg = realloc(arg, sizeof(argument) * argsCount);
-                        arg[argsCount-1].isNeeded = false;
-                        getArgument(&arg[argsCount-1], pos, &pos);
                     }
                 }
-                pos++;
             }
-            if(strcmp(tokens[pos].type, "bracket{") != 0){
-                printf("Expected { bracket\n");
-                return false;
-            }
-            pos++;
-            int bracketsCount2 = 1;
-            for(int i = 0; i < argsCount; i++){
-                if(arg[i].isNeeded == true){
-                    if(arg[i].isTrue == false){
-                        while (bracketsCount2 > 0 && pos < tokLen)
-                        {
-                            if(strcmp(tokens[pos].type, "bracket}") == 0){
-                                bracketsCount2--;
-                            }
-                            else if(strcmp(tokens[pos].type, "bracket{") == 0){
-                                bracketsCount2++;
-                            }
-                            pos++;
-                        }
-                        break;
-                    }
-                    else{
-                        openedBracketsShaped++;
-                    }
-                }
-                else{
-                    if(i < argsCount-1){
-                        if(arg[i+1].isTrue == false){
-                            while (bracketsCount2 > 0 && pos < tokLen)
-                            {
-                                if(strcmp(tokens[pos].type, "bracket}") == 0){
-                                    bracketsCount2--;
-                                }
-                                else if(strcmp(tokens[pos].type, "bracket{") == 0){
-                                    bracketsCount2++;
-                                }
-                                pos++;
-                            }
-                            break;
+            bool result = false;
+            if(argsCount > 1){
+                for(int i = 1; i < argsCount; i++){
+                    if(arg[i].isNeeded == true){
+                        if(arg[i].isTrue == true){
+                            result = true;
+                            i++;
                         }
                         else{
-                            openedBracketsShaped++;
+                            result = false;
+                            break;
                         }
-                        i++;
                     }
                     else{
-                        while (bracketsCount2 > 0 && pos < tokLen)
-                        {
-                            if(strcmp(tokens[pos].type, "bracket}") == 0){
-                                bracketsCount2--;
-                            }
-                            else if(strcmp(tokens[pos].type, "bracket{") == 0){
-                                bracketsCount2++;
-                            }
-                            pos++;
-                        }
-                        break;
+
                     }
                 }
             }
+            else if(argsCount == 1){
+                if(arg[0].isTrue == true){
+                    result = true;
+                }
+            }
+            else{
+                result = true;
+            }
+            if(result == true){
+                if(strcmp(tokens[pos].type, "bracket{") == 0){
+                    lastArg = ARG_TRUE;
+                    openedBracketsShaped++;
+                    pos++;
+                }
+            }
+            else{
+                if(strcmp(tokens[pos].type, "bracket{") == 0){
+                    int bracketsS = 1;
+                    lastArg = ARG_FALSE;
+                    pos++;
+                    while(pos < tokLen && bracketsS > 0){
+                        if(strcmp(tokens[pos].type, "bracket{") == 0){
+                            bracketsS++;
+                        }
+                        else if(strcmp(tokens[pos].type, "bracket}") == 0){
+                            bracketsS--;
+                        }
+                        pos++;
+                    }
+                }
+            }
+            
         }
         else if(strcmp(tokens[pos].type, "bracket}") == 0){
             if(openedBracketsShaped > 0){
@@ -1915,12 +1816,11 @@ bool parse(){
     return true;
 }
 void run(){
-    tokenize(codes);
-    parse();
+    
 }
 
 int main(int argc, char* argv[]){
-    char* version = "dev0.0.2.1";
+    char* version = "dev0.0.3.5";
     if (argc >= 2){
         for (int i = 1; i < argc; i++)
         {
@@ -1928,7 +1828,29 @@ int main(int argc, char* argv[]){
                 debug = true;
             }
             else if(strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-v") == 0){
-                printf("%s\n", version);
+                printf("\n");
+                printf("                                   ./@@/  @&\n");
+                printf("                                @@@@@@@&   @@@@@&                   ");printf(" :::    :::     :::     :::       :::     :::     \n");
+                printf("                             &@@@@@@@@@&   .@@@@@@@/                ");printf(":+:   :+:    :+: :+:   :+:       :+:   :+: :+:   \n");
+                printf("                           #@@@@@@@@@@@@    &@@@@@@@@               ");printf("+:+  +:+    +:+   +:+  +:+       +:+  +:+   +:+  \n");
+                printf("                          @@@@@@@@@@@@@@    #@@@@@@@@@/             ");printf("+#++:++    +#++:++#++: +#+  +:+  +#+ +#++:++#++: \n");
+                printf("                         &@@@@@@@@@@@@@#    #@@@@@@@@@@/            ");printf("+#+  +#+   +#+     +#+ +#+ +#+#+ +#+ +#+     +#+ \n");
+                printf("                        /@@@@@@@@@@@@@@     &@@@@@@@@@@@            ");printf("#+#   #+#  #+#     #+#  #+#+# #+#+#  #+#     #+# \n");
+                printf("                        &@@@@@@@@@@@@@/     @@@@@@@@@@@@*           ");printf("###    ### ###     ###   ###   ###   ###     ### \n");
+                printf("                        @@@@@@@@@@@@@&     @@@@@@@@@@@@@(           \n");
+                printf("                        &@@@@@@@@@@@@     (@@@@@@@@@@@@@*           \n");
+                printf("                         @@@@@@@@@@@@     @@@@@@@@@@@@@@            \n");
+                printf("                         %%@@@@@@@@@@@    /@@@@@@@@@@@@@*           ");printf("       ___  __   __     __           \n");
+                printf("                          &@@@@@@@@@@    #@@@@@@@@@@@@*             ");printf("\\  / |__  |__) /__` | /  \\ |\\ | .   \n");
+                printf("                           *@@@@@@@@@    #@@@@@@@@@@@               ");printf(" \\/  |___ |  \\ .__/ | \\__/ | \\| .   %s\n", version);
+                printf("                             (@@@@@@@@   (@@@@@@@@@                 \n");
+                printf("                                &@@@@@(   @@@@@@(                   \n");
+                printf("                                    ./&#  #\n");
+                printf("                                                                    \n");
+                printf("                   )_) _   _   _         ( _   _   _ ( _ o  _   _   \n");
+                printf("                  ( ( (_( )_) )_) (_(     ) ) (_( (_  )\\ ( ) ) (_(  \n");
+                printf("                         (   (      _)                           _) \n");
+
             }
             else if(strcmp(argv[i], "--build") == 0 || strcmp(argv[i], "-b") == 0){
                 build = true;
@@ -1937,9 +1859,9 @@ int main(int argc, char* argv[]){
             else if(strcmp(argv[i], "--here") == 0 || strcmp(argv[i], "-h") == 0){
                 here = true;
             }
-            else if(strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "-version") == 0){
-                here = true;
-            }
+            // else if(strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "-version") == 0){
+            //     here = true;
+            // }
             else{
                 char * buffer = 0;
                 long length;
@@ -1969,17 +1891,18 @@ int main(int argc, char* argv[]){
 
                 if (buffer)
                 {
-                    codes = malloc(length+1);
-                    strncpy(codes, buffer, length+1);
-                    if(debug){
-                        printf("File %s has been added to codes.\n", argv[i]);
-                    }
-                    //printf("%c", codes[13]);
-                    free(buffer);
-                    if(debug){
-                        printf("Freed buffer.\n");
-                    }
-                    
+                    tokenize(buffer);
+                    parse();
+                    // codes = malloc(length+1);
+                    // strncpy(codes, buffer, length+1);
+                    // if(debug){
+                    //     printf("File %s has been added to codes.\n", argv[i]);
+                    // }
+                    // //printf("%c", codes[13]);
+                    // free(buffer);
+                    // if(debug){
+                    //     printf("Freed buffer.\n");
+                    // }
                 }
             }
         
