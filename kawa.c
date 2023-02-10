@@ -1616,8 +1616,14 @@ bool parse(){
                 for(int i = 1; i < argsCount; i++){
                     if(arg[i].isNeeded == true){
                         if(arg[i].isTrue == true){
-                            result = true;
-                            i++;
+                            if(arg[i-1].isTrue == true){
+                                result = true;
+                                i++;
+                            }
+                            else{
+                                result = false;
+                                break;
+                            }
                         }
                         else{
                             result = false;
