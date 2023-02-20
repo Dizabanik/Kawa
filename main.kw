@@ -1,5 +1,9 @@
-i = 10.1
-
-i = "HELLO"
-
-println(i)
+mut u = "9H"
+i = "91"
+k = 5
+if(i == "90" && k == 5){
+    print(i)
+}
+elif(i == "91"){
+    print("HELLO")
+}

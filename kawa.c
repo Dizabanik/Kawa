@@ -8,6 +8,11 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <time.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
 
 #define ArrLeng(x)  (sizeof(x) / sizeof((x)[0]))
 
@@ -22,6 +27,9 @@
 #define ARG_FALSE 1
 #define ARG_TRUE 2
 
+#define SYNTAX_ERROR 0
+#define RUNTIME_ERROR 1
+
 #pragma region Random
 
 
@@ -33,6 +41,7 @@ bool debug = false;
 bool forceBuild = false;
 FILE *fp;
 uint_fast8_t lastArg = ARG_UNDEFINED;
+bool supportColors = false;
 typedef struct _argument{
     bool isTrue;
     bool isNeeded;
@@ -48,6 +57,7 @@ typedef struct _token{
     char type[51];
     char value[101];
     long double val;
+    int line;
 } token;
 
 typedef struct _var{
@@ -79,6 +89,74 @@ int tokLen = 0;
 int varLen = 0;
 int argLen = 0;
 char* codes = 0;
+
+
+
+void err_start(int error_type){
+    if(supportColors == true){
+#ifdef _WIN32
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    SetConsoleTextAttribute(hConsole, FOREGROUND_RED);
+    printf("\nError");
+    SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+    printf(": ");
+    if(error_type == SYNTAX_ERROR){
+        SetConsoleTextAttribute(hConsole, FOREGROUND_RED);
+        printf("SyntaxError");
+        SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+        printf(": ");
+    }
+    else if(error_type == RUNTIME_ERROR){
+        SetConsoleTextAttribute(hConsole, FOREGROUND_RED);
+        printf("RuntimeError");
+        SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+        printf(": ");
+    }
+#else
+    if(error_type == SYNTAX_ERROR){
+        printf("\x1b[31mError\x1b[0m: \x1b[31mSyntaxError\x1b[0m: ");
+    }
+    else if(error_type == RUNTIME_ERROR){
+        printf("\x1b[31mError\x1b[0m: \x1b[31mRuntimeError\x1b[0m: ");
+    }
+    else{
+        printf("\x1b[31mError\x1b[0m: ");
+    }
+   
+#endif
+    }
+    else{
+        if(error_type == SYNTAX_ERROR){
+            printf("Error: SyntaxError: ");
+        }
+        else if(error_type == RUNTIME_ERROR){
+            printf("Error: RuntimeError: ");
+        }
+        else{
+            printf("Error: ");
+        }
+    }
+}
+
+void err_end(int line){
+    if(line > 0){
+        if(supportColors == true){
+    #ifdef _WIN32
+        HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+        SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE);
+        printf("(line %d)\n", line);
+        SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+    #else
+        printf("\x1b[36m(line %d)\x1b[0m\n", line);
+    #endif
+        }
+        else{
+            printf("(line %d)\n", line);
+        }
+    }
+}
+
+
 char *strremove(char *str, const char *sub) {
     char *p, *q, *r;
     if (*sub && (q = r = strstr(str, sub)) != NULL) {
@@ -267,7 +345,9 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
                         }
                     }
                     else{
-                        printf("Unexpected operator %s\n", vals[i].operatorType);
+                        err_start(SYNTAX_ERROR);
+                        printf("Unexpected operator %s ", vals[i].operatorType);
+                        err_end(-1);
                         //free(vals);
                         return false;
                     }
@@ -373,7 +453,9 @@ bool compareVals(valu* val1, valu* val2, char* operator){
             }
         }
         else{
+            err_start(SYNTAX_ERROR);
             printf("Unexpected operator %s\n", operator);
+            err_end(-1);
             return false;
         }
     }
@@ -430,7 +512,9 @@ bool compareVals(valu* val1, valu* val2, char* operator){
             }
         }
         else{
+            err_start(SYNTAX_ERROR);
             printf("Unexpected operator %s\n", operator);
+            err_end(-1);
             return false;
         }
     }
@@ -595,6 +679,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
     }
     else if(strcmp(subtype, "mut") == 0){
         if(withOper){
+            
             valu val;
             bool vv = getValue(pos+3, &pos, &val, false);
             strncpy(vars[varLen-1].value, val.value, 101);
@@ -660,10 +745,14 @@ bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int brackets
         }
         if(!isCustomKW){
             if(tokLen <= pos+1){
-                printf("Unexpected end of line, expected variable name\n");
+                err_start(SYNTAX_ERROR);
+                printf("Unexpected end of line, expected variable name ");
+                err_end(tokens[pos].line);
                 return false;
             }
-            printf("Unexpected token %s, expected variable name\n", tokens[pos+1].type);
+            err_start(SYNTAX_ERROR);
+            printf("Unexpected token %s, expected variable name ", tokens[pos+1].type);
+            err_end(tokens[pos+1].line);
             return false;
         }
     }
@@ -687,7 +776,9 @@ bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int brackets
             isOper = true;
         }
         else{
-            printf("Unexpected operator %s\n", tokens[pos+2].value);
+            err_start(SYNTAX_ERROR);
+            printf("Unexpected operator %s ", tokens[pos+2].value);
+            err_end(tokens[pos+2].line);
             return false;
         }
     }
@@ -708,7 +799,9 @@ bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int brackets
         }
     }
     if(exists == true){
-        printf("Variable %s already exists\n", varName);
+        err_start(SYNTAX_ERROR);
+        printf("Variable %s already exists ", varName);
+        err_end(tokens[pos+1].line);
         //free(vval);
         return false;
     }
@@ -743,9 +836,9 @@ bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int brackets
     if(pretype != NULL){
         strncpy(vars[varLen-1].pretype, pretype, 5);
     }
-    if(withKeyword == true){
-        pos++;
-    }
+    // if(withKeyword == true){
+    //     pos++;
+    // }
     if(isF == true){
         vars[varLen-1].isFunc = true;
         pos++;
@@ -815,7 +908,9 @@ bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int brackets
                     }
                 }
                 if(exists == false){
-                    printf("Variable %s already exists\n", tokens[pos].value);
+                    err_start(SYNTAX_ERROR);
+                    printf("Variable %s already exists ", tokens[pos].value);
+                    err_end(tokens[pos].line);
                     return false;
                 }
                 else{
@@ -892,8 +987,10 @@ void tokenize(char* code){
                 column++;
             }
             if(code[pos] != '\"'){
-                printf("Unterminated string at line %d column %d\n", line, column);
+                err_start(SYNTAX_ERROR);
+                printf("Unterminated string at line %d column %d ", line, column);
                 pos++;
+                err_end(line);
                 continue;
             }
             pos++;
@@ -909,6 +1006,7 @@ void tokenize(char* code){
             //strcpy(tokens[tokLen-1].value, "");
             strncpy(tokens[tokLen-1].type, "string", 8);
             strncpy(tokens[tokLen-1].value, res, 101);
+            tokens[tokLen-1].line = line;
             
         }
         else if(currentChar == '\''){
@@ -924,8 +1022,10 @@ void tokenize(char* code){
             }
             
             if(code[pos] != '\''){
-                printf("Unterminated char at line %d column %d\n", line, column);
+                err_start(SYNTAX_ERROR);
+                printf("Unterminated char at line %d column %d ", line, column);
                 pos++;
+                err_end(line);
                 continue;
             }
             // if(leng > 1){
@@ -944,7 +1044,7 @@ void tokenize(char* code){
             //strcpy(tokens[tokLen-1].value, "");
             strncpy(tokens[tokLen-1].type, "char", 8);
             strncpy(tokens[tokLen-1].value, &res, 1);
-            
+            tokens[tokLen-1].line = line;
         }
         else if(currentChar == '+'){
             
@@ -952,6 +1052,7 @@ void tokenize(char* code){
             tokLen++;
             strncpy(tokens[tokLen-1].type, "operator", 15);
             strncpy(tokens[tokLen-1].value, "add", 5);
+            tokens[tokLen-1].line = line;
             pos++;
         }
         else if(currentChar == '-'){
@@ -960,42 +1061,49 @@ void tokenize(char* code){
             tokLen++;
             strncpy(tokens[tokLen-1].type, "operator", 15);
             strncpy(tokens[tokLen-1].value, "sub", 5);
+            tokens[tokLen-1].line = line;
             pos++;
         }
         else if(currentChar == '('){
             tokens = realloc(tokens, (tokLen+1)*sizeof(token));
             tokLen++;
             strncpy(tokens[tokLen-1].type, "bracket(", 15);
+            tokens[tokLen-1].line = line;
             pos++;
         }
         else if(currentChar == ')'){
             tokens = realloc(tokens, (tokLen+1)*sizeof(token));
             tokLen++;
             strncpy(tokens[tokLen-1].type, "bracket)", 15);
+            tokens[tokLen-1].line = line;
             pos++;
         }
         else if(currentChar == '['){
             tokens = realloc(tokens, (tokLen+1)*sizeof(token));
             tokLen++;
             strncpy(tokens[tokLen-1].type, "bracket[", 15);
+            tokens[tokLen-1].line = line;
             pos++;
         }
         else if(currentChar == ']'){
             tokens = realloc(tokens, (tokLen+1)*sizeof(token));
             tokLen++;
             strncpy(tokens[tokLen-1].type, "bracket]", 15);
+            tokens[tokLen-1].line = line;
             pos++;
         }
         else if(currentChar == '{'){
             tokens = realloc(tokens, (tokLen+1)*sizeof(token));
             tokLen++;
             strncpy(tokens[tokLen-1].type, "bracket{", 15);
+            tokens[tokLen-1].line = line;
             pos++;
         }
         else if(currentChar == '}'){
             tokens = realloc(tokens, (tokLen+1)*sizeof(token));
             tokLen++;
             strncpy(tokens[tokLen-1].type, "bracket}", 15);
+            tokens[tokLen-1].line = line;
             pos++;
         }
         else if(isdigit(currentChar)){
@@ -1028,8 +1136,10 @@ void tokenize(char* code){
                         digitsAfterDot = 0;
                     }
                     else{
-                        printf("Undefined second dot at line %d column %d\n", line, column);
+                        err_start(SYNTAX_ERROR);
+                        printf("Undefined second dot at line %d column %d ", line, column);
                         pos++;
+                        err_end(line);
                         continue;
 
                     }
@@ -1080,6 +1190,7 @@ void tokenize(char* code){
                 //     //printf("Hello\n");
                 // }
             }
+            tokens[tokLen-1].line = line;
         }
         else{
             bool isInclude = false;
@@ -1174,6 +1285,7 @@ void tokenize(char* code){
                 
                 //tokens[tokLen-1].type = calloc(1,1);
                 //tokens[tokLen-1].value = calloc(1,1);
+                tokens[tokLen-1].line = line;
                 if(isInclude){
                     strncpy(tokens[tokLen-1].type, "keyword", 10);
                 }
@@ -1277,6 +1389,7 @@ void tokenize(char* code){
                     tokLen++;
                     strncpy(tokens[tokLen-1].type, "operator", 15);
                     strncpy(tokens[tokLen-1].value, "/", 6);
+                    tokens[tokLen-1].line = line;
                 }
             }
             else if(currentChar == '='){
@@ -1294,6 +1407,7 @@ void tokenize(char* code){
                     tokLen++;
                     strncpy(tokens[tokLen-1].type, "operator", 15);
                     strncpy(tokens[tokLen-1].value, "eq", 15);
+                    tokens[tokLen-1].line = line;
                 }
                 else{
                     pos++;
@@ -1309,6 +1423,7 @@ void tokenize(char* code){
                     tokLen++;
                     strncpy(tokens[tokLen-1].type, "operator", 15);
                     strncpy(tokens[tokLen-1].value, "==", 6);
+                    tokens[tokLen-1].line = line;
                 }
             }
             else if(currentChar == '>'){
@@ -1328,6 +1443,7 @@ void tokenize(char* code){
                     tokLen++;
                     strncpy(tokens[tokLen-1].type, "operator", 15);
                     strncpy(tokens[tokLen-1].value, ">=", 6);
+                    tokens[tokLen-1].line = line;
                 }
                 else{
                     if(tokLen > 0){
@@ -1341,6 +1457,7 @@ void tokenize(char* code){
                     tokLen++;
                     strncpy(tokens[tokLen-1].type, "operator", 15);
                     strncpy(tokens[tokLen-1].value, ">", 6);
+                    tokens[tokLen-1].line = line;
                 }
             }
             else if(currentChar == '<'){
@@ -1360,6 +1477,7 @@ void tokenize(char* code){
                     tokLen++;
                     strncpy(tokens[tokLen-1].type, "operator", 15);
                     strncpy(tokens[tokLen-1].value, "<=", 6);
+                    tokens[tokLen-1].line = line;
                 }
                 else{
                     if(tokLen > 0){
@@ -1373,6 +1491,7 @@ void tokenize(char* code){
                     tokLen++;
                     strncpy(tokens[tokLen-1].type, "operator", 15);
                     strncpy(tokens[tokLen-1].value, "<", 6);
+                    tokens[tokLen-1].line = line;
                 }
             }
             else if(currentChar == '!'){
@@ -1392,6 +1511,7 @@ void tokenize(char* code){
                     tokLen++;
                     strncpy(tokens[tokLen-1].type, "operator", 15);
                     strncpy(tokens[tokLen-1].value, "!=", 6);
+                    tokens[tokLen-1].line = line;
                 }
                 else{
                     if(tokLen > 0){
@@ -1405,6 +1525,7 @@ void tokenize(char* code){
                     tokLen++;
                     strncpy(tokens[tokLen-1].type, "operator", 15);
                     strncpy(tokens[tokLen-1].value, "!", 3);
+                    tokens[tokLen-1].line = line;
                 }
             }
             else if(currentChar == '&'){
@@ -1424,6 +1545,7 @@ void tokenize(char* code){
                     tokLen++;
                     strncpy(tokens[tokLen-1].type, "operator", 15);
                     strncpy(tokens[tokLen-1].value, "&&", 6);
+                    tokens[tokLen-1].line = line;
                 }
             }
             else if(currentChar == '|'){
@@ -1443,11 +1565,15 @@ void tokenize(char* code){
                     tokLen++;
                     strncpy(tokens[tokLen-1].type, "operator", 15);
                     strncpy(tokens[tokLen-1].value, "||", 6);
+                    tokens[tokLen-1].line = line;
                 }
             }
             else{
-                printf("Unexpected character %c at line %d column %d\n", code[pos], line, column);
-
+                err_start(SYNTAX_ERROR);
+                printf("Unexpected character %c at line %d column %d ", code[pos], line, column);
+                pos++;
+                err_end(line);
+                continue;
             }
         }
         
@@ -1458,29 +1584,217 @@ bool parse(){
     const int len = tokLen;
     int pos = 0;
     char varT[12] = "";
-    
+   
     while(pos<len){
+        if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "else") == 0){
+            pos++;
+            if(lastArg == ARG_FALSE){
+                if(strcmp(tokens[pos+1].type, "bracket{") == 0){
+                    lastArg = ARG_UNDEFINED;
+                    openedBracketsShaped++;
+                    pos++;
+                    continue;
+                }
+            }
+            else if(lastArg == ARG_TRUE){
+                if(strcmp(tokens[pos].type, "bracket{") == 0){
+                    int bracketsS = 1;
+                    lastArg = ARG_UNDEFINED;
+                    pos++;
+                    while(pos < tokLen && bracketsS > 0){
+                        if(strcmp(tokens[pos].type, "bracket{") == 0){
+                            bracketsS++;
+                        }
+                        else if(strcmp(tokens[pos].type, "bracket}") == 0){
+                            bracketsS--;
+                        }
+                        pos++;
+                    }
+                }
+            }
+            else{
+                err_start(SYNTAX_ERROR);
+                printf("Unexpected els statement without preceding if or elif ");
+                err_end(tokens[pos-1].line);
+                return false;
+            }
+        }
+        else if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "elif") == 0){
+            
+            if(lastArg == ARG_FALSE){
+                
+                if(tokLen <= pos+1){
+                    err_start(SYNTAX_ERROR);
+                    printf("Unexpected statement start, expected ( ");
+                    err_end(tokens[pos].line);
+                    return false;
+                }
+                if(strcmp(tokens[pos+1].type, "bracket(") != 0){
+                    err_start(SYNTAX_ERROR);
+                    printf("Unexpected statement start, expected ( ");
+                    err_end(tokens[pos].line);
+                    return false;
+                }
+                pos+=2;
+                if(tokLen <= pos){  
+                    err_start(SYNTAX_ERROR);
+                    printf("Statement arguments not found ");
+                    err_end(tokens[pos].line);
+                    return false;
+                }
+                int brackets = 1;
+                int argsCount = 1;
+                argument arg[MAX_ARGS];
+                //arg[argsCount-1].isNeeded = true;
+                arg[argsCount-1].isTrue = getArgument(pos, &pos);
+                while(brackets > 0 && tokLen > pos){
+                    if(strcmp(tokens[pos].type, "bracket(") == 0){
+                        brackets++;
+                        pos++;
+                    }
+                    else if(strcmp(tokens[pos].type,"bracket)") == 0){
+                        brackets--;
+                        pos++;
+                    }
+                    if(strcmp(tokens[pos].type, "operator") == 0){
+                        if(strcmp(tokens[pos].value, "&&") == 0){
+                            arg[argsCount].isTrue = getArgument(pos+1, &pos);
+                            arg[argsCount].isNeeded = true;
+                            argsCount++;
+                        }
+                        else if(strcmp(tokens[pos].value, "||") == 0){
+                            arg[argsCount].isTrue = getArgument(pos+1, &pos);
+                            arg[argsCount].isNeeded = false;
+                            argsCount++;
+                        }
+                    }
+                }
+                bool result = false;
+                if(argsCount > 1){
+                    for(int i = 1; i < argsCount; i++){
+                        if(arg[i].isNeeded == true){
+                            if(arg[i].isTrue == true){
+                                if(arg[i-1].isTrue == true){
+                                    result = true;
+                                    i++;
+                                }
+                                else{
+                                    result = false;
+                                    break;
+                                }
+                            }
+                            else{
+                                result = false;
+                                break;
+                            }
+                        }
+                        else{
+                            if(arg[i].isTrue == true){
+                                result = true;
+                                i++;
+                            }
+                            else{
+                                if(arg[i-1].isTrue == true){
+                                    result = true;
+                                    i++;
+                                }
+                                else{
+                                    result = false;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                else if(argsCount == 1){
+                    if(arg[0].isTrue == true){
+                        result = true;
+                    }
+                }
+                else{
+                    result = true;
+                }
+                if(result == true){
+                    if(strcmp(tokens[pos].type, "bracket{") == 0){
+                        lastArg = ARG_TRUE;
+                        openedBracketsShaped++;
+                        pos++;
+                    }
+                }
+                else{
+                    if(strcmp(tokens[pos].type, "bracket{") == 0){
+                        int bracketsS = 1;
+                        lastArg = ARG_FALSE;
+                        pos++;
+                        while(pos < tokLen && bracketsS > 0){
+                            if(strcmp(tokens[pos].type, "bracket{") == 0){
+                                bracketsS++;
+                            }
+                            else if(strcmp(tokens[pos].type, "bracket}") == 0){
+                                bracketsS--;
+                            }
+                            pos++;
+                        }
+                    }
+                }
+                continue;
+            }
+            else if(lastArg == ARG_TRUE){
+                pos++;
+                if(strcmp(tokens[pos].type, "bracket{") == 0){
+                    int bracketsS = 1;
+                    lastArg = ARG_UNDEFINED;
+                    pos++;
+                    while(pos < tokLen && bracketsS > 0){
+                        if(strcmp(tokens[pos].type, "bracket{") == 0){
+                            bracketsS++;
+                        }
+                        else if(strcmp(tokens[pos].type, "bracket}") == 0){
+                            bracketsS--;
+                        }
+                        pos++;
+                    }
+                    continue;
+                }
+            }
+            else{
+                err_start(SYNTAX_ERROR);
+                printf("Unexpected elif statement without preceding if ");
+                err_end(tokens[pos].line);
+                return false;
+            }
+        }
+        //---------------CLEAR PREVIOUS IF------------
+        lastArg = ARG_UNDEFINED;
         //-------------------print--------------------
         if(strncmp(tokens[pos].type, "function", 9) == 0 && strncmp(tokens[pos].value, "print", 6) == 0 || strncmp(tokens[pos].value, "println", 6) == 0){
             if(build == false){
                 int p = pos;
                 if(tokLen <= pos+1){
-                    printf("Unexpected function invoke, expected (\n");
+                    err_start(SYNTAX_ERROR);
+                    printf("Unexpected function invoke, expected ( ");
+                    err_end(tokens[p].line);
                     return false;
                 }
                 else if(tokLen <= pos+2){
-                    printf("Unexpected end of line, expected value for %s\n", tokens[p].value);
+                    err_start(SYNTAX_ERROR);
+                    printf("Unexpected end of line, expected value for %s ", tokens[p].value);
+                    err_end(tokens[p].line);
                     return false;
                 }
                 
                 valu val;
 
                 if(getValue(pos+2, &pos, &val, false) == false){
-                    printf("Error getting value for print\n");
+                    err_start(RUNTIME_ERROR);
+                    printf("Error getting value for print ");
+                    err_end(tokens[p+2].line);
                     return false;
                 }
                 if(strcmp(tokens[pos].type, "bracket)") != 0){
-                    printf("Unexpected end of function print, expected )\n");
+                    err_start(SYNTAX_ERROR);
+                    printf("Unexpected end of function print, expected ) ");
+                    err_end(tokens[pos].line);
                     return false;
                 }
                 if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
@@ -1501,17 +1815,23 @@ bool parse(){
                 if(forceBuild == false){
                     int p = pos;
                     if(tokLen <= pos+1){
-                        printf("Unexpected function invoke, expected (\n");
+                        err_start(SYNTAX_ERROR);
+                        printf("Unexpected function invoke, expected ( ");
+                        err_end(tokens[p].line);
                         return false;
                     }
                     else if(tokLen <= pos+2){
-                        printf("Unexpected end of line, expected value for %s\n", tokens[p].value);
+                        err_start(SYNTAX_ERROR);
+                        printf("Unexpected end of line, expected value for %s ", tokens[p].value);
+                        err_end(tokens[p].line);
                         return false;
                     }
                     
                     valu val;
                     if(getValue(pos+2, &pos, &val, false) == false){
-                        printf("Error getting value for print\n");
+                        err_start(RUNTIME_ERROR);
+                        printf("Error getting value for print ");
+                        err_end(tokens[pos].line);
                         return false;
                     }
                     pos++;
@@ -1528,7 +1848,9 @@ bool parse(){
         else if(strcmp(tokens[pos].type, "function_custom") == 0){
             int p = pos;
             if(tokLen <= pos+1){
-                printf("Unexpected function invoke, expected (\n");
+                err_start(SYNTAX_ERROR);
+                printf("Unexpected function invoke, expected ( ");
+                err_end(tokens[pos].line);
                 return false;
             }
             int vvp = -1;
@@ -1536,7 +1858,9 @@ bool parse(){
             {
                 if(strcmp(vars[i].name, tokens[pos].value) == 0){
                     if(vars[i].isFunc == false){
-                        printf("%s is not a function\n", vars[i].name);
+                        err_start(SYNTAX_ERROR);
+                        printf("%s is not a function ", vars[i].name);
+                        err_end(tokens[pos].line);
                         return false;
                     }
                     vvp = i;
@@ -1564,7 +1888,9 @@ bool parse(){
             valu val;
 
             if(getValue(pos+2, &pos, &val, false) == false){
-                printf("Error getting value for %s\n", tokens[p].value);
+                err_start(RUNTIME_ERROR);
+                printf("Error getting value for %s ", tokens[p].value);
+                err_end(tokens[pos].line);
                 return false;
             }
         }
@@ -1572,16 +1898,22 @@ bool parse(){
         else if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "if") == 0){
             lastArg = ARG_UNDEFINED;
             if(tokLen <= pos+1){
-                printf("Unexpected statement start, expected (\n");
+                err_start(SYNTAX_ERROR);
+                printf("Unexpected statement start, expected ( ");
+                err_end(tokens[pos].line);
                 return false;
             }
             if(strcmp(tokens[pos+1].type, "bracket(") != 0){
-                printf("Unexpected statement start, expected (\n");
+                err_start(SYNTAX_ERROR);
+                printf("Unexpected statement start, expected ( ");
+                err_end(tokens[pos].line);
                 return false;
             }
             pos+=2;
             if(tokLen <= pos){  
-                printf("Statement arguments not found\n");
+                err_start(SYNTAX_ERROR);
+                printf("Statement arguments not found ");
+                err_end(tokens[pos].line);
                 return false;
             }
             int brackets = 1;
@@ -1686,7 +2018,9 @@ bool parse(){
                 openedBracketsShaped--;
             }
             else{
-                printf("Unexpected bracket }\n");
+                err_start(SYNTAX_ERROR);
+                printf("Unexpected bracket } ");
+                err_end(tokens[pos].line);
             }
             pos++;
         }
@@ -1695,7 +2029,9 @@ bool parse(){
                 openedBracketsRound--;
             }
             else{
-                printf("Unexpected bracket )\n");
+                err_start(SYNTAX_ERROR);
+                printf("Unexpected bracket ) ");
+                err_end(tokens[pos].line);
             }
             pos++;
         }
@@ -1704,7 +2040,9 @@ bool parse(){
                 openedBracketsSquare--;
             }
             else{
-                printf("Unexpected bracket ]\n");
+                err_start(SYNTAX_ERROR);
+                printf("Unexpected bracket ] ");
+                err_end(tokens[pos].line);
             }
             pos++;
         }
@@ -1783,7 +2121,9 @@ bool parse(){
                                 if(strcmp(vars[index].subtype, "mut") == 0){
                                     valu val;
                                     if(getValue(pos+2, &pos, &val, false) != true){
+                                        err_start(RUNTIME_ERROR);
                                         printf("Error getting value\n");
+                                        err_end(tokens[pos].line);
                                     }
                                     strcpy(vars[index].type, val.type);
                                     vars[index].val = val.val;
@@ -1827,7 +2167,9 @@ bool parse(){
             }
         }
         else{
-            printf("Unexpected token of type %s and with value %s\n", tokens[pos].type, tokens[pos].value);
+            err_start(SYNTAX_ERROR);
+            printf("Unexpected token of type %s ", tokens[pos].type, tokens[pos].value);
+            err_end(tokens[pos].line);
             return false;
         }
         
@@ -1840,6 +2182,38 @@ void run(){
 
 int main(int argc, char* argv[]){
     char* version = "dev0.0.3.5";
+    
+#ifdef _WIN32
+        // Windows console
+        HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+        if (hConsole != INVALID_HANDLE_VALUE) {
+            DWORD consoleMode;
+            if (GetConsoleMode(hConsole, &consoleMode)) {
+                consoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+                if (SetConsoleMode(hConsole, consoleMode)) {
+                    supportColors = true;
+                } else {
+                    supportColors = false;
+                }
+            } else {
+                supportColors = false;
+            }
+        } else {
+            supportColors = false;
+        }
+#else
+        if (isatty(fileno(stdout))) {
+            // Unix-like console
+            if (system("tput colors > /dev/null") == 0) {
+                supportColors = true;
+            } else {
+                supportColors = false;
+            }
+        }
+        else{
+            supportColors = false;
+        }
+#endif
     if (argc >= 2){
         for (int i = 1; i < argc; i++)
         {
