@@ -954,7 +954,7 @@ void tokenize(char* code){
     //char - char
     char BUILT_IN_KEYWORDS[20][10] = {{"var"}, {"int"}, {"si"}, {"ui"}, {"long"}, {"llong"}, {"i8"}, {"i16"}, {"i32"}, {"u8"}, {"u16"}, {"u32"}, {"mut"}, {"double"}, {"float"}, {"ldob"}, {"str"}, {"char"}, {"sc"}, {"uc"}};
     char BUILT_IN_FUNCS[2][20] = {{"print"}, {"println"}};
-    char BUILT_IN_STATEMENTS[1][20] = {{"if"}};
+    char BUILT_IN_STATEMENTS[3][20] = {{"if"}, {"elif"}, {"else"}};
     char varChars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
     int line = 1;
     int column = 0;
@@ -1584,6 +1584,8 @@ bool parse(){
     const int len = tokLen;
     int pos = 0;
     char varT[12] = "";
+    uint_fast8_t isInIf = 5;
+    int bracketsToEndIf = 0;
    
     while(pos<len){
         if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "else") == 0){
@@ -1593,6 +1595,7 @@ bool parse(){
                     lastArg = ARG_UNDEFINED;
                     openedBracketsShaped++;
                     pos++;
+                    isInIf = 1;
                     continue;
                 }
             }
@@ -1610,11 +1613,13 @@ bool parse(){
                         }
                         pos++;
                     }
+                    isInIf = 0;
+                    continue;
                 }
             }
             else{
                 err_start(SYNTAX_ERROR);
-                printf("Unexpected els statement without preceding if or elif ");
+                printf("Unexpected else statement without preceding if or elif ");
                 err_end(tokens[pos-1].line);
                 return false;
             }
@@ -1717,8 +1722,11 @@ bool parse(){
                 if(result == true){
                     if(strcmp(tokens[pos].type, "bracket{") == 0){
                         lastArg = ARG_TRUE;
+                        isInIf=1;
+                        bracketsToEndIf = openedBracketsShaped;
                         openedBracketsShaped++;
                         pos++;
+                        continue;
                     }
                 }
                 else{
@@ -1736,6 +1744,7 @@ bool parse(){
                             pos++;
                         }
                     }
+                    isInIf = 0;
                 }
                 continue;
             }
@@ -1754,6 +1763,7 @@ bool parse(){
                         }
                         pos++;
                     }
+                    isInIf = 0;
                     continue;
                 }
             }
@@ -1765,7 +1775,10 @@ bool parse(){
             }
         }
         //---------------CLEAR PREVIOUS IF------------
-        lastArg = ARG_UNDEFINED;
+        if(isInIf == 0){
+            lastArg = ARG_UNDEFINED;
+            isInIf = 5;
+        }
         //-------------------print--------------------
         if(strncmp(tokens[pos].type, "function", 9) == 0 && strncmp(tokens[pos].value, "print", 6) == 0 || strncmp(tokens[pos].value, "println", 6) == 0){
             if(build == false){
@@ -1991,6 +2004,8 @@ bool parse(){
             if(result == true){
                 if(strcmp(tokens[pos].type, "bracket{") == 0){
                     lastArg = ARG_TRUE;
+                    isInIf=1;
+                    bracketsToEndIf = openedBracketsShaped;
                     openedBracketsShaped++;
                     pos++;
                 }
@@ -2016,6 +2031,9 @@ bool parse(){
         else if(strcmp(tokens[pos].type, "bracket}") == 0){
             if(openedBracketsShaped > 0){
                 openedBracketsShaped--;
+                if(isInIf == 1 && bracketsToEndIf == openedBracketsShaped){
+                    isInIf = 0;
+                }
             }
             else{
                 err_start(SYNTAX_ERROR);
@@ -2167,10 +2185,15 @@ bool parse(){
             }
         }
         else{
-            err_start(SYNTAX_ERROR);
-            printf("Unexpected token of type %s ", tokens[pos].type, tokens[pos].value);
-            err_end(tokens[pos].line);
-            return false;
+            if(pos < tokLen){
+                err_start(SYNTAX_ERROR);
+                printf("Unexpected token of type %s ", tokens[pos].type, tokens[pos].value);
+                err_end(tokens[pos].line);
+                return false;
+            }
+            else{
+                return true;
+            }
         }
         
     }
@@ -2181,7 +2204,7 @@ void run(){
 }
 
 int main(int argc, char* argv[]){
-    char* version = "dev0.0.3.5";
+    char* version = "dev0.0.5.0";
     
 #ifdef _WIN32
         // Windows console
