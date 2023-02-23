@@ -2008,7 +2008,9 @@ bool parse(){
                     bracketsToEndIf = openedBracketsShaped;
                     openedBracketsShaped++;
                     pos++;
+                    continue;
                 }
+                
             }
             else{
                 if(strcmp(tokens[pos].type, "bracket{") == 0){
@@ -2024,6 +2026,7 @@ bool parse(){
                         }
                         pos++;
                     }
+                    continue;
                 }
             }
             

@@ -1,10 +1,10 @@
 mut u = "9H"
-i = "90"
-k = 9
+i = "91"
+k = 5
 if(i == "91" && k == 5){
     print(i)
 }
-elif(k == 9){
+elif(k == 8){
     print(89)
 }
 else{
