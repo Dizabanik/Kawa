@@ -1625,9 +1625,7 @@ bool parse(){
             }
         }
         else if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "elif") == 0){
-            
             if(lastArg == ARG_FALSE){
-                
                 if(tokLen <= pos+1){
                     err_start(SYNTAX_ERROR);
                     printf("Unexpected statement start, expected ( ");
@@ -1749,10 +1747,39 @@ bool parse(){
                 continue;
             }
             else if(lastArg == ARG_TRUE){
-                pos++;
+                if(tokLen <= pos+1){
+                    err_start(SYNTAX_ERROR);
+                    printf("Unexpected statement start, expected ( ");
+                    err_end(tokens[pos].line);
+                    return false;
+                }
+                if(strcmp(tokens[pos+1].type, "bracket(") != 0){
+                    err_start(SYNTAX_ERROR);
+                    printf("Unexpected statement start, expected ( ");
+                    err_end(tokens[pos].line);
+                    return false;
+                }
+                pos+=2;
+                if(tokLen <= pos){  
+                    err_start(SYNTAX_ERROR);
+                    printf("Statement arguments not found ");
+                    err_end(tokens[pos].line);
+                    return false;
+                }
+                int brackets = 1;
+                int argsCount = 1;
+                while(brackets > 0 && tokLen > pos){
+                    if(strcmp(tokens[pos].type, "bracket(") == 0){
+                        brackets++;
+                    }
+                    else if(strcmp(tokens[pos].type,"bracket)") == 0){
+                        brackets--;
+                    }
+                    pos++;
+                }
                 if(strcmp(tokens[pos].type, "bracket{") == 0){
                     int bracketsS = 1;
-                    lastArg = ARG_UNDEFINED;
+                    lastArg = ARG_TRUE;
                     pos++;
                     while(pos < tokLen && bracketsS > 0){
                         if(strcmp(tokens[pos].type, "bracket{") == 0){
