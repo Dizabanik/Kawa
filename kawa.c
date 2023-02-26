@@ -114,26 +114,26 @@ void err_start(int error_type){
     }
 #else
     if(error_type == SYNTAX_ERROR){
-        printf("\x1b[31mError\x1b[0m: \x1b[31mSyntaxError\x1b[0m: ");
+        printf("\n\x1b[31mError\x1b[0m: \x1b[31mSyntaxError\x1b[0m: ");
     }
     else if(error_type == RUNTIME_ERROR){
-        printf("\x1b[31mError\x1b[0m: \x1b[31mRuntimeError\x1b[0m: ");
+        printf("\n\x1b[31mError\x1b[0m: \x1b[31mRuntimeError\x1b[0m: ");
     }
     else{
-        printf("\x1b[31mError\x1b[0m: ");
+        printf("\n\x1b[31mError\x1b[0m: ");
     }
    
 #endif
     }
     else{
         if(error_type == SYNTAX_ERROR){
-            printf("Error: SyntaxError: ");
+            printf("\nError: SyntaxError: ");
         }
         else if(error_type == RUNTIME_ERROR){
-            printf("Error: RuntimeError: ");
+            printf("\nError: RuntimeError: ");
         }
         else{
-            printf("Error: ");
+            printf("\nError: ");
         }
     }
 }
@@ -382,10 +382,14 @@ char* getVarValue(int pos, int* posP, bool toZeroBrackets){
     if(strcmp(val.type, "float") == 0 || strcmp(val.type, "int") == 0){
         char strc[MAX_STR_LENGTH] = "";
         sprintf(strc, "%Lg", val.val);
-        return strc;
+        char* res = malloc(strlen(strc) + 1);
+        strcpy(res, strc);
+        return res;
     }
     else if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
-        return val.value;
+        char* res = malloc(strlen(val.value) + 1);
+        strcpy(res, val.value);
+        return res;
     }
 }
 long double getVarVal(int pos, int* posP, bool toZeroBrackets){
@@ -954,7 +958,7 @@ void tokenize(char* code){
     //char - char
     char BUILT_IN_KEYWORDS[20][10] = {{"var"}, {"int"}, {"si"}, {"ui"}, {"long"}, {"llong"}, {"i8"}, {"i16"}, {"i32"}, {"u8"}, {"u16"}, {"u32"}, {"mut"}, {"double"}, {"float"}, {"ldob"}, {"str"}, {"char"}, {"sc"}, {"uc"}};
     char BUILT_IN_FUNCS[2][20] = {{"print"}, {"println"}};
-    char BUILT_IN_STATEMENTS[3][20] = {{"if"}, {"elif"}, {"else"}};
+    char BUILT_IN_STATEMENTS[6][20] = {{"if"}, {"elif"}, {"else"}, {"while"}, {"break"}, {"continue"}};
     char varChars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
     int line = 1;
     int column = 0;
@@ -982,7 +986,53 @@ void tokenize(char* code){
             pos++;
             column++;
             while(code[pos] != '\"' && pos < length){
-                strncat(res, &code[pos], 1);
+                if(code[pos] == '\\'){
+                    pos++;
+                    column++;
+                    char ch = ' ';
+                    if(code[pos] == 'n'){
+                        ch = '\n';
+                    }
+                    else if(code[pos] == 't'){
+                        ch = '\t';
+                    }
+                    else if(code[pos] == 'a'){
+                        ch = '\a';
+                    }
+                    else if(code[pos] == 'b'){
+                        ch = '\b';
+                    }
+                    else if(code[pos] == 'f'){
+                        ch = '\f';
+                    }
+                    else if(code[pos] == 'r'){
+                        ch = '\r';
+                    }
+                    else if(code[pos] == 'v'){
+                        ch = '\v';
+                    }
+                    else if(code[pos] == '\\'){
+                        ch = '\\';
+                    }
+                    else if(code[pos] == '\''){
+                        ch = '\'';
+                    }
+                    else if(code[pos] == '\"'){
+                        ch = '\"';
+                    }
+                    else if(code[pos] == '?'){
+                        ch = '\?';
+                    }
+                    else{
+                        err_start(SYNTAX_ERROR);
+                        printf("Unexpected escape sequence in string ");
+                        err_end(line);
+                    }
+                    strncat(res, &ch, 1);
+                }
+                else{
+                    strncat(res, &code[pos], 1);
+                }
                 pos++;
                 column++;
             }
@@ -1406,7 +1456,7 @@ void tokenize(char* code){
                     //tokens[tokLen-1].value = calloc(1,1);
                     tokLen++;
                     strncpy(tokens[tokLen-1].type, "operator", 15);
-                    strncpy(tokens[tokLen-1].value, "eq", 15);
+                    strncpy(tokens[tokLen-1].value, "eq", 5);
                     tokens[tokLen-1].line = line;
                 }
                 else{
@@ -1580,13 +1630,19 @@ void tokenize(char* code){
     }
     
 }
+typedef struct {
+    int pos;
+    int bracketsShaped;
+} loopStruct;
 bool parse(){
     const int len = tokLen;
     int pos = 0;
     char varT[12] = "";
     uint_fast8_t isInIf = 5;
     int bracketsToEndIf = 0;
-   
+    loopStruct loops[200];
+    int loopsTo = 0;
+    argument arg[MAX_ARGS];
     while(pos<len){
         if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "else") == 0){
             pos++;
@@ -1647,7 +1703,6 @@ bool parse(){
                 }
                 int brackets = 1;
                 int argsCount = 1;
-                argument arg[MAX_ARGS];
                 //arg[argsCount-1].isNeeded = true;
                 arg[argsCount-1].isTrue = getArgument(pos, &pos);
                 while(brackets > 0 && tokLen > pos){
@@ -1958,7 +2013,6 @@ bool parse(){
             }
             int brackets = 1;
             int argsCount = 1;
-            argument arg[MAX_ARGS];
             //arg[argsCount-1].isNeeded = true;
             arg[argsCount-1].isTrue = getArgument(pos, &pos);
             while(brackets > 0 && tokLen > pos){
@@ -2064,6 +2118,11 @@ bool parse(){
                 if(isInIf == 1 && bracketsToEndIf == openedBracketsShaped){
                     isInIf = 0;
                 }
+                if(loops[loopsTo-1].bracketsShaped == openedBracketsShaped){
+                    loopsTo--;
+                    pos = loops[loopsTo].pos;
+                    continue;
+                }
             }
             else{
                 err_start(SYNTAX_ERROR);
@@ -2113,6 +2172,147 @@ bool parse(){
                 return false;
             }
         }
+        //---------------while loop--------------------------
+        else if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "while") == 0){
+            int p = pos;
+            if(tokLen <= pos+1){
+                err_start(SYNTAX_ERROR);
+                printf("Unexpected loop start, expected ( ");
+                err_end(tokens[pos].line);
+                return false;
+            }
+            if(strcmp(tokens[pos+1].type, "bracket(") != 0){
+                err_start(SYNTAX_ERROR);
+                printf("Unexpected loop start, expected ( ");
+                err_end(tokens[pos].line);
+                return false;
+            }
+            pos+=2;
+            if(tokLen <= pos){  
+                err_start(SYNTAX_ERROR);
+                printf("Loop arguments not found ");
+                err_end(tokens[pos].line);
+                return false;
+            }
+            int brackets = 1;
+            int argsCount = 1;
+            //arg[argsCount-1].isNeeded = true;
+            arg[argsCount-1].isTrue = getArgument(pos, &pos);
+            while(brackets > 0 && tokLen > pos){
+                if(strcmp(tokens[pos].type, "bracket(") == 0){
+                    brackets++;
+                    pos++;
+                }
+                else if(strcmp(tokens[pos].type,"bracket)") == 0){
+                    brackets--;
+                    pos++;
+                }
+                if(strcmp(tokens[pos].type, "operator") == 0){
+                    if(strcmp(tokens[pos].value, "&&") == 0){
+                        arg[argsCount].isTrue = getArgument(pos+1, &pos);
+                        arg[argsCount].isNeeded = true;
+                        argsCount++;
+                    }
+                    else if(strcmp(tokens[pos].value, "||") == 0){
+                        arg[argsCount].isTrue = getArgument(pos+1, &pos);
+                        arg[argsCount].isNeeded = false;
+                        argsCount++;
+                    }
+                }
+            }
+            bool result = false;
+            if(argsCount > 1){
+                for(int i = 1; i < argsCount; i++){
+                    if(arg[i].isNeeded == true){
+                        if(arg[i].isTrue == true){
+                            if(arg[i-1].isTrue == true){
+                                result = true;
+                                i++;
+                            }
+                            else{
+                                result = false;
+                                break;
+                            }
+                        }
+                        else{
+                            result = false;
+                            break;
+                        }
+                    }
+                    else{
+                        if(arg[i].isTrue == true){
+                            result = true;
+                            i++;
+                        }
+                        else{
+                            if(arg[i-1].isTrue == true){
+                                result = true;
+                                i++;
+                            }
+                            else{
+                                result = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            else if(argsCount == 1){
+                if(arg[0].isTrue == true){
+                    result = true;
+                }
+            }
+            else{
+                result = true;
+            }
+            if(result == true){
+                if(strcmp(tokens[pos].type, "bracket{") == 0){
+                    loops[loopsTo].pos = p;
+                    loops[loopsTo].bracketsShaped = openedBracketsShaped;
+                    loopsTo++;
+                    openedBracketsShaped++;
+                    pos++;
+                    continue;
+                }
+                
+            }
+            else{
+                if(strcmp(tokens[pos].type, "bracket{") == 0){
+                    int bracketsS = 1;
+                    pos++;
+                    while(pos < tokLen && bracketsS > 0){
+                        if(strcmp(tokens[pos].type, "bracket{") == 0){
+                            bracketsS++;
+                            pos++;
+                        }
+                        else if(strcmp(tokens[pos].type, "bracket}") == 0){
+                            bracketsS--;
+                            pos++;
+                        }
+                        else{
+                            pos++;
+                        }
+                    }
+                    continue;
+                }
+            }
+        }
+        //-----------break---------
+        else if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "break") == 0){
+            int tB = loops[loopsTo-1].bracketsShaped;
+            pos++;
+            while (pos < tokLen && openedBracketsShaped > tB)
+            {
+                if(strcmp(tokens[pos].type, "bracket{") == 0){
+                    openedBracketsShaped++;
+                }
+                else if(strcmp(tokens[pos].type, "bracket}") == 0){
+                    openedBracketsShaped--;
+                }
+                pos++;
+            }
+            loopsTo--;
+        }
         //-------------------all keywords-------------------
         else if(strcmp(tokens[pos].type, "keyword") == 0){
             if(strcmp(tokens[pos+1].type, "keyword_custom") == 0){
@@ -2148,6 +2348,7 @@ bool parse(){
         }
         //--------var without var word---------------
         else if(strcmp(tokens[pos].type, "keyword_custom") == 0){
+            printf(" \b"); // ERROR WITHOUT THIS(IDK WHY)
             bool exists = false;
             int index = 0;
             for (int i = 0; i < varLen; i++) {
@@ -2160,12 +2361,10 @@ bool parse(){
             }
             bool isEq = false;
             if(exists){
-                if(tokLen > pos+2){
+                if(tokLen > pos+2){ 
                     if(strcmp(tokens[pos+1].type, "operator") == 0){
                         if(strcmp(tokens[pos+1].value, "eq") == 0){
                             if(strcmp(vars[index].subtype, "") == 0 || vars[index].subtype == NULL || strcmp(vars[index].subtype, "mut") == 0 || strcmp(vars[index].subtype, "ft\\eq") == 0){
-                                
-                                
                                 if(strcmp(vars[index].subtype, "mut") == 0){
                                     valu val;
                                     if(getValue(pos+2, &pos, &val, false) != true){
@@ -2178,21 +2377,51 @@ bool parse(){
                                     strcpy(vars[index].value, val.value);
                                 }
                                 else{
+                                    valu val;
+                                    if(getValue(pos+2, &pos, &val, false) != true){
+                                        err_start(RUNTIME_ERROR);
+                                        printf("Error getting value\n");
+                                        err_end(tokens[pos].line);
+                                    }
                                     if(strcmp(vars[index].type, "int") == 0 || strcmp(vars[index].type, "float") == 0){
-                                        vars[index].val = getVarVal(pos+2, &pos, false);
+                                        if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
+                                            vars[index].val = strtold(val.value, NULL);
+                                        }
+                                        else{
+                                            vars[index].val = val.val;
+                                        }
                                     }
                                     else if(strcmp(vars[index].type, "string") == 0){
-                                        strcpy(vars[index].value, getVarValue(pos+2, &pos, false));
+                                        if(strcmp(val.type, "int") == 0 || strcmp(val.type, "float") == 0){
+                                            sprintf(vars[index].value, "%Lg", val.val);
+                                        }
+                                        else{
+                                            strcpy(vars[index].value, val.value);
+                                        }
                                     }
                                     else if(strcmp(vars[index].type, "char") == 0){
-                                        strcpy(vars[index].value, " ");
-                                        vars[index].value[0] = getVarValue(pos+2, &pos, false)[0];
+                                        if(strcmp(val.type, "int") == 0 || strcmp(val.type, "float") == 0){
+                                            sprintf(vars[index].value, "%Lg", val.val);
+                                            strncpy(vars[index].value, vars[index].value, 1);
+                                            vars[index].value[1] = '\0';
+                                        }
+                                        else{
+                                            strncpy(vars[index].value, val.value, 1);
+                                            vars[index].value[1] = '\0';
+                                        }
+                                        
                                     }
                                 }
                             }
                             else{
                                 calculateSubtype(vars[index].subtype, &vars[index], pos+2, &pos, false, true);
                             }
+                        }
+                        else{
+                            err_start(SYNTAX_ERROR);
+                            printf("Unexpected operator %s ", tokens[pos+1].value);
+                            err_end(tokens[pos+1].line);
+                            return false;
                         }
                     }
                 }
@@ -2273,7 +2502,7 @@ int main(int argc, char* argv[]){
             if(strcmp(argv[i], "--debug") == 0 || strcmp(argv[i], "-d") == 0){
                 debug = true;
             }
-            else if(strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-v") == 0){
+            else if(strcmp(argv[i], "--info") == 0 || strcmp(argv[i], "-i") == 0){
                 printf("\n");
                 printf("                                   ./@@/  @&\n");
                 printf("                                @@@@@@@&   @@@@@&                   ");printf(" :::    :::     :::     :::       :::     :::     \n");
