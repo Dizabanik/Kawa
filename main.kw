@@ -4,8 +4,9 @@ i = "91"
 k = 5
 if(i == "91" && k == 5){
     while(k < 10){
-        print(i+" ")
-        break
+        i+="8"
+        println(k)
+        k+="1"
     }
 }
 elif(k == 8){

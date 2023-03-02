@@ -30,6 +30,14 @@
 #define SYNTAX_ERROR 0
 #define RUNTIME_ERROR 1
 
+#define USE_KW_TYPES
+#define KW_INT 1
+#define KW_FLOAT 2
+#define KW_CHAR 3
+#define KW_STRING 4
+#define KW_UNDEF 0
+
+
 #pragma region Random
 
 
@@ -65,6 +73,7 @@ typedef struct _var{
     char value[101];
     char type[51];
     long double val;
+    void* vval;
     char subtype[7];
     int bracketsToDelete;
     char pretype[5];
@@ -77,6 +86,7 @@ typedef struct _valu{
     char value[101];
     char type[51];
     long double val;
+    void* vval;
     char operatorType[5];
     char subtype[7];
 } valu;
@@ -170,7 +180,9 @@ char *strremove(char *str, const char *sub) {
     }
     return str;
 }
-
+bool valSetValu(void* v, valu* val){
+    
+}
 bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
     valu val;
     int bracketsRoC = 0;
@@ -846,83 +858,17 @@ bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int brackets
     if(isF == true){
         vars[varLen-1].isFunc = true;
         pos++;
+        int brAc = 1;
         while (pos < tokLen)
         {
-            // //-------------------var--------------------
-            // if(strcmp(tokens[pos].type, "keyword") == 0 && strcmp(tokens[pos].value, "var") == 0){
-            //     bool b = createVar(pos, &pos, true, NULL, openedBracketsShaped, NULL, false);
-            //     if(!b){
-            //         return false;
-            //     }
-            // }
-            // //-------------------all keywords-------------------
-            // else if(strcmp(tokens[pos].type, "keyword") == 0){
-            //     bool b = createVar(pos, &pos, true, tokens[pos].value, openedBracketsShaped, NULL, false);
-            //     if(!b){
-            //         return false;
-            //     }
-            // }
-            // else if(strcmp(tokens[pos].type, "keyword_custom") == 0){
-            //     bool exists = false;
-            //     int index = 0;
-            //     for (int i = 0; i < varLen; i++) {
-            //         if (strcmp(vars[i].name, tokens[pos].value) == 0) {
-            //             exists = true;
-            //             index = i;
-            //             break;
-            //         }
-            //     }
-            //     if(exists == false){
-            //         printf("Variable %s already exists\n", tokens[pos].value);
-            //         return false;
-            //     }
-            //     else{
-            //         pos--;
-            //         bool b = createVar(pos, &pos, false, NULL, openedBracketsShaped, NULL, false);
-            //         if(!b){
-            //             return false;
-            //         }
-            //     }
-            // }
-            //-------------------var--------------------
-            if(strcmp(tokens[pos].type, "keyword") == 0 && strcmp(tokens[pos].value, "var") == 0){
-                vars[varLen-1].fargsCount++;
-                if(vars[varLen-1].fargsCount <= 1){
-                    vars[varLen-1].fargs = malloc(sizeof(farg));
-                }
-                else{
-                    vars[varLen-1].fargs = realloc(vars[varLen-1].fargs, sizeof(farg)*vars[varLen-1].fargsCount);
-                }
+            if(strcmp(tokens[pos].type, "bracket)") == 0){
+                brAc--;
+                pos++;
             }
-            //-------------------all keywords-------------------
-            else if(strcmp(tokens[pos].type, "keyword") == 0){
-                bool b = createVar(pos, &pos, true, tokens[pos].value, openedBracketsShaped, NULL, false);
+            if(strcmp(tokens[pos].type, "keyword") == 0 && strcmp(tokens[pos].value, "var") == 0){
+                bool b = createVar(pos, &pos, true, NULL, openedBracketsShaped-2, NULL, false);
                 if(!b){
                     return false;
-                }
-            }
-            else if(strcmp(tokens[pos].type, "keyword_custom") == 0){
-                bool exists = false;
-                int index = 0;
-                for (int i = 0; i < varLen; i++) {
-                    if (strcmp(vars[i].name, tokens[pos].value) == 0) {
-                        exists = true;
-                        index = i;
-                        break;
-                    }
-                }
-                if(exists == false){
-                    err_start(SYNTAX_ERROR);
-                    printf("Variable %s already exists ", tokens[pos].value);
-                    err_end(tokens[pos].line);
-                    return false;
-                }
-                else{
-                    pos--;
-                    bool b = createVar(pos, &pos, false, NULL, openedBracketsShaped, NULL, false);
-                    if(!b){
-                        return false;
-                    }
                 }
             }
         }
@@ -1097,13 +1043,30 @@ void tokenize(char* code){
             tokens[tokLen-1].line = line;
         }
         else if(currentChar == '+'){
-            
-            tokens = realloc(tokens, (tokLen+1)*sizeof(token));
-            tokLen++;
-            strncpy(tokens[tokLen-1].type, "operator", 15);
-            strncpy(tokens[tokLen-1].value, "add", 5);
-            tokens[tokLen-1].line = line;
             pos++;
+            if(code[pos] == '+'){
+                tokens = realloc(tokens, (tokLen+1)*sizeof(token));
+                tokLen++;
+                strncpy(tokens[tokLen-1].type, "operator", 15);
+                strncpy(tokens[tokLen-1].value, "++", 5);
+                tokens[tokLen-1].line = line;
+                pos++;
+            }
+            else if(code[pos] == '='){
+                tokens = realloc(tokens, (tokLen+1)*sizeof(token));
+                tokLen++;
+                strncpy(tokens[tokLen-1].type, "operator", 15);
+                strncpy(tokens[tokLen-1].value, "+=", 5);
+                tokens[tokLen-1].line = line;
+                pos++;
+            }
+            else{
+                tokens = realloc(tokens, (tokLen+1)*sizeof(token));
+                tokLen++;
+                strncpy(tokens[tokLen-1].type, "operator", 15);
+                strncpy(tokens[tokLen-1].value, "add", 5);
+                tokens[tokLen-1].line = line;
+            }
         }
         else if(currentChar == '-'){
             
@@ -2313,6 +2276,12 @@ bool parse(){
             }
             loopsTo--;
         }
+        //--------------continue-------------
+        else if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "continue") == 0){
+            loopsTo--;
+            pos = loops[loopsTo].pos;
+            continue;
+        }
         //-------------------all keywords-------------------
         else if(strcmp(tokens[pos].type, "keyword") == 0){
             if(strcmp(tokens[pos+1].type, "keyword_custom") == 0){
@@ -2415,6 +2384,64 @@ bool parse(){
                             }
                             else{
                                 calculateSubtype(vars[index].subtype, &vars[index], pos+2, &pos, false, true);
+                            }
+                        }
+                        else if(strcmp(tokens[pos+1].value, "++") == 0){
+                            if(strcmp(vars[index].type, "int") == 0 || strcmp(vars[index].type, "float") == 0){
+                                vars[index].val++;
+                            }
+                            else if(strcmp(vars[index].type, "string") == 0){
+                                err_start(SYNTAX_ERROR);
+                                printf("Unexpected operator ++ for string ");
+                                err_end(tokens[pos+1].line);
+                                return false;
+                            }
+                            else if(strcmp(vars[index].type, "char") == 0){
+                                vars[index].value[0]++;
+                            }
+                            pos+=2;
+                        }
+                        else if(strcmp(tokens[pos+1].value, "+=") == 0){
+                            valu val;
+                            if(getValue(pos+2, &pos, &val, false) != true){
+                                err_start(RUNTIME_ERROR);
+                                printf("Error getting value\n");
+                                err_end(tokens[pos].line);
+                            }
+                            if(strcmp(vars[index].type, "int") == 0 || strcmp(vars[index].type, "float") == 0){
+                                if(strcmp(val.type, "int") == 0 || strcmp(val.type, "float") == 0){
+                                    vars[index].val+= val.val;
+                                }
+                                else if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
+                                    vars[index].val+= strtold(val.value, NULL);
+                                }
+                            }
+                            else if(strcmp(vars[index].type, "string") == 0){
+                                if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
+                                    strcat(vars[index].value, val.value);
+                                }
+                                else{
+                                    char temp[MAX_STR_LENGTH];
+                                    sprintf(temp, "%Lg", val.val);
+                                    strcat(vars[index].value, temp);
+                                }
+                            }
+                            else if(strcmp(vars[index].type, "char") == 0){
+                                if(strcmp(val.type, "int") == 0 || strcmp(val.type, "float") == 0){
+                                    vars[index].value[0]+=(int)val.val;
+                                }
+                                else{
+                                    if(strcmp(vars[index].subtype, "mut") == 0){
+                                        strcpy(vars[index].type, "string");
+                                        strcat(vars[index].value, val.value);
+                                    }
+                                    else{
+                                        err_start(SYNTAX_ERROR);
+                                        printf("Cannot append string to character ");
+                                        err_end(tokens[pos+1].line);
+                                        return false;
+                                    }
+                                }
                             }
                         }
                         else{
