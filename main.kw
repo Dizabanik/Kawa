@@ -1,20 +1,8 @@
 //mut u = "9H"
 u = 0
 i = "91"
-k = 5
-if(i == "91" && k == 5){
-    while(k < 10){
-        i+="8"
-        println(k)
-        k+="1"
-    }
-}
-elif(k == 8){
-    print(89)
-}
-else{
-    print(9)
-}
+mut k = 5
+print(k)
 
 
 

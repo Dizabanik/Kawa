@@ -35,6 +35,18 @@
 #define KW_FLOAT 2
 #define KW_CHAR 3
 #define KW_STRING 4
+#define KW_BRACKET_ROUNDED_OPENED 5
+#define KW_BRACKET_ROUNDED_CLOSED 6
+#define KW_BRACKET_SHAPED_OPENED 7
+#define KW_BRACKET_SHAPED_CLOSED 8
+#define KW_BRACKET_SQUARED_OPENED 9
+#define KW_BRACKET_SQUARED_CLOSED 10
+#define KW_KEY 11
+#define KW_KEY_CUSTOM 12
+#define KW_OPERATOR 13
+#define KW_FUN 14
+#define KW_FUN_CUSTOM 15
+#define KW_STATEMENT 16
 #define KW_UNDEF 0
 
 
@@ -62,7 +74,7 @@ typedef struct _farg{
     char* subtype;
 } farg;
 typedef struct _token{
-    char type[51];
+    uint_fast8_t type;
     char value[101];
     long double val;
     int line;
@@ -71,7 +83,7 @@ typedef struct _token{
 typedef struct _var{
     char name[51];
     char value[101];
-    char type[51];
+    int type;
     long double val;
     void* vval;
     char subtype[7];
@@ -84,7 +96,7 @@ typedef struct _var{
 } var;
 typedef struct _valu{
     char value[101];
-    char type[51];
+    int type;
     long double val;
     void* vval;
     char operatorType[5];
@@ -194,7 +206,7 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
     valu vals[MAX_VALUES];
     int count = 0;
     while(pos < tokLen){
-        if(strcmp(tokens[pos].type, "bracket(") == 0){
+        if(tokens[pos].type == KW_BRACKET_ROUNDED_OPENED){
             bracketsRoC++;
             valu vv;
             getValue(pos+1, &pos, &vv, true);
@@ -206,11 +218,11 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
             //     vals = realloc(vals, count * sizeof(valu));
             // }
             vals[count-1].val = vv.val;
-            strcpy(vals[count-1].type, vv.type);
+            vars[count-1].type = vv.type;
             strcpy(vals[count-1].value, vv.value);
             pos++;
         }
-        else if(strcmp(tokens[pos].type, "bracket)") == 0){
+        else if(tokens[pos].type == KW_BRACKET_ROUNDED_CLOSED){
             if(bracketsRoC <= 0){
                 break;
             }
@@ -222,7 +234,7 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
                 }
             }
         }
-        else if(strcmp(tokens[pos].type, "keyword_custom") == 0){
+        else if(tokens[pos].type == KW_KEY_CUSTOM){
             
             // if(count == 1){
             //     vals = malloc(sizeof(valu));
@@ -236,7 +248,7 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
                     count ++;
                     vals[count-1].val = vars[i].val;
                     strcpy(vals[count-1].value, vars[i].value);
-                    strcpy(vals[count-1].type, vars[i].type);
+                    vals[count-1].type = vars[i].type;
                     strcpy(vals[count-1].subtype, vars[i].subtype);
                     isT = true;
                     break;
@@ -248,7 +260,7 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
             }
             pos++;
         }
-        else if(strcmp(tokens[pos].type, "int") == 0 || strcmp(tokens[pos].type, "float") == 0){
+        else if(tokens[pos].type == KW_INT || tokens[pos].type == KW_FLOAT){
             count ++;
             // if(count == 1){
             //     vals = malloc(sizeof(valu));
@@ -257,10 +269,10 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
             //     vals = realloc(vals, count * sizeof(valu));
             // }
             vals[count-1].val = tokens[pos].val;
-            strcpy(vals[count-1].type, tokens[pos].type);
+            vals[count-1].type = tokens[pos].type;
             pos++;
         }
-        else if(strcmp(tokens[pos].type, "string") == 0){
+        else if(tokens[pos].type == KW_STRING){
             count ++;
             // if(count == 1){
             //     vals = malloc(sizeof(valu));
@@ -269,10 +281,10 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
             //     vals = realloc(vals, count * sizeof(valu));
             // }
             strcpy(vals[count-1].value, tokens[pos].value);
-            strcpy(vals[count-1].type, tokens[pos].type);
+            vals[count-1].type = tokens[pos].type;
             pos++;
         }
-        else if(strcmp(tokens[pos].type, "char") == 0){
+        else if(tokens[pos].type == KW_CHAR){
             count ++;
             // if(count == 1){
             //     vals = malloc(sizeof(valu));
@@ -282,10 +294,10 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
             // }
             strcpy(vals[count-1].value, " ");
             vals[count-1].value[0] = tokens[pos].value[0];
-            strcpy(vals[count-1].type, tokens[pos].type);
+            vals[count-1].type = tokens[pos].type;
             pos++;
         }
-        else if(strcmp(tokens[pos].type, "operator") == 0){
+        else if(tokens[pos].type == KW_OPERATOR){
             if(strcmp(tokens[pos].value, "==") == 0 || strcmp(tokens[pos].value, ">") == 0 || strcmp(tokens[pos].value, "<") == 0 || strcmp(tokens[pos].value, "!=") == 0 || strcmp(tokens[pos].value, ">=") == 0 || strcmp(tokens[pos].value, "<=") == 0 || strcmp(tokens[pos].value, "&&") == 0 || strcmp(tokens[pos].value, "||") == 0){
                 break;
             }
@@ -297,7 +309,7 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
             //     vals = realloc(vals, count * sizeof(valu));
             // }
             strncpy(vals[count-1].operatorType, tokens[pos].value, 5);
-            strcpy(vals[count-1].type, tokens[pos].type);
+            vals[count-1].type = tokens[pos].type;
             
             pos++;
         }
@@ -308,15 +320,15 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
     if(count > 0){
         if(count > 1){
             for(int i = 0; i < count; i++){
-                if(strcmp(vals[i].type, "operator") == 0){
+                if(vals[i].type == KW_OPERATOR){
                     
                     if(i > 0){
                         if(strcmp(vals[i].operatorType, "add") == 0){
-                            if(strcmp(vals[i-1].type, "string") == 0 || strcmp(vals[i-1].type, "char") == 0){
-                                if(strcmp(vals[i+1].type, "int") == 0 || strcmp(vals[i+1].type, "float") == 0){
+                            if(vals[i-1].type == KW_STRING || vals[i-1].type == KW_CHAR){
+                                if(vals[i+1].type == KW_INT || vals[i+1].type == KW_FLOAT){
                                     sprintf(vals[i+1].value, "%Lg", vals[i+1].val);
                                 }
-                                strcpy(vals[i+1].type, vals[i-1].type);
+                                vals[i+1].type = vals[i-1].type;
                                 char str3[202];
                                 strncpy(str3, vals[i-1].value, 101);
                                 strncat(str3, vals[i+1].value, 101); 
@@ -325,25 +337,25 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
                                 
                             }
                             else{
-                                if(strcmp(vals[i+1].type, "string") == 0 || strcmp(vals[i+1].type, "char") == 0){
+                                if(vals[i+1].type == KW_STRING || vals[i+1].type == KW_CHAR){
                                     vals[i+1].val = strtold(vals[i+1].value, NULL) + vals[i-1].val;
-                                    strcpy(vals[i+1].type, vals[i-1].type);
+                                    vals[i+1].type = vals[i-1].type;
                                 }
                                 else{
                                     vals[i+1].val = vals[i-1].val + vals[i+1].val;
-                                    strcpy(vals[i+1].type, vals[i-1].type);
+                                    vals[i+1].type = vals[i-1].type;
                                 }
                             }
                             i++;
                         }
                         else if(strcmp(vals[i].operatorType, "sub") == 0){
                             
-                            if(strcmp(vals[i-1].type, "string") == 0 || strcmp(vals[i-1].type, "char") == 0){
-                                strcpy(vals[i+1].type, vals[i-1].type);
+                            if(vals[i-1].type == KW_STRING || vals[i-1].type == KW_CHAR){
+                                vals[i+1].type = vals[i-1].type;
                                 strcpy(vals[i+1].value, strremove(vals[i-1].value, vals[i+1].value));
                             }
                             else{
-                                if(strcmp(vals[i+1].type, "string") == 0 || strcmp(vals[i+1].type, "char") == 0){
+                                if(vals[i+1].type == KW_STRING || vals[i+1].type == KW_CHAR){
                                     vals[i+1].val = vals[i-1].val - strtold(vals[i+1].value, NULL);
                                     
                                 }
@@ -351,7 +363,7 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
                                     
                                     vals[i+1].val = vals[i-1].val - vals[i+1].val;
                                 }
-                                strcpy(vals[i+1].type, vals[i-1].type);
+                                vals[i+1].type = vals[i-1].type;
                             }
                             i++;
                         }
@@ -366,17 +378,17 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
                 }
                 
             }
-            strcpy(val.type, vals[count-1].type);
+            val.type = vals[count-1].type;
             strcpy(val.value, vals[count-1].value);
             val.val = vals[count-1].val;
         }
         else{
-            strcpy(val.type, vals[0].type);
+            val.type = vals[0].type;
             strcpy(val.value, vals[0].value);
             val.val = vals[0].val;
         }
     }
-    strcpy(value->type, val.type);
+    value->type = val.type;
     strcpy(value->value, val.value);
     value->val = val.val;
     
@@ -391,14 +403,14 @@ bool getValue(int pos, int* posP, valu* value, bool toZeroBrackets){
 char* getVarValue(int pos, int* posP, bool toZeroBrackets){
     valu val;
     getValue(pos, posP, &val, toZeroBrackets);
-    if(strcmp(val.type, "float") == 0 || strcmp(val.type, "int") == 0){
+    if(val.type == KW_FLOAT || val.type == KW_INT){
         char strc[MAX_STR_LENGTH] = "";
         sprintf(strc, "%Lg", val.val);
         char* res = malloc(strlen(strc) + 1);
         strcpy(res, strc);
         return res;
     }
-    else if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
+    else if(val.type == KW_STRING || val.type == KW_CHAR){
         char* res = malloc(strlen(val.value) + 1);
         strcpy(res, val.value);
         return res;
@@ -407,17 +419,17 @@ char* getVarValue(int pos, int* posP, bool toZeroBrackets){
 long double getVarVal(int pos, int* posP, bool toZeroBrackets){
     valu val;
     getValue(pos, posP, &val, toZeroBrackets);
-    if(strcmp(val.type, "float") == 0 || strcmp(val.type, "int") == 0){
+    if(val.type == KW_FLOAT || val.type == KW_INT){
         return val.val;
     }
-    else if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
+    else if(val.type == KW_STRING || val.type == KW_CHAR){
         return strtold(val.value, NULL);
     }
 }
 
 bool compareVals(valu* val1, valu* val2, char* operator){
-    if(strcmp(val1->type, "int") == 0 || strcmp(val1->type, "float") == 0){
-        if(strcmp(val2->type, "string") == 0 || strcmp(val2->type, "char") == 0){
+    if(val1->type == KW_INT || val1->type == KW_FLOAT){
+        if(val2->type == KW_STRING || val2->type == KW_CHAR){
             val1->val = strtold(val2->value, NULL);
         }
         if(strcmp(operator, "==") == 0){
@@ -475,8 +487,8 @@ bool compareVals(valu* val1, valu* val2, char* operator){
             return false;
         }
     }
-    else if(strcmp(val1->type, "string") == 0 || strcmp(val1->type, "char") == 0){
-        if(strcmp(val2->type, "int") == 0 || strcmp(val2->type, "float") == 0){
+    else if(val1->type == KW_STRING && val1->type == KW_CHAR){
+        if(val2->type == KW_INT || val2->type == KW_FLOAT){
             sprintf(val2->value, "%Lg", val2->val);
         }
         if(strcmp(operator, "==") == 0){
@@ -556,7 +568,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             vari->val = 0;
         }
-        strncpy(vars[varLen-1].type, "int", 51);
+        vars[varLen-1].type = KW_INT;
     }
     else if(strcmp(subtype, "u16") == 0){
         if(withOper){
@@ -565,7 +577,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             vari->val = 0;
         }
-        strncpy(vars[varLen-1].type, "int", 51);
+        vars[varLen-1].type = KW_INT;
     }
     else if(strcmp(subtype, "u8") == 0){
         if(withOper){
@@ -574,7 +586,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             vari->val = 0;
         }
-        strncpy(vars[varLen-1].type, "int", 51);
+        vars[varLen-1].type = KW_INT;
     }
     else if(strcmp(subtype, "i32") == 0){
         if(withOper){
@@ -583,7 +595,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             vari->val = 0;
         }
-        strncpy(vars[varLen-1].type, "int", 51);
+        vars[varLen-1].type = KW_INT;
     }
     else if(strcmp(subtype, "i16") == 0){
         if(withOper){
@@ -592,7 +604,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             vari->val = 0;
         }
-        strncpy(vars[varLen-1].type, "int", 51);
+        vars[varLen-1].type = KW_INT;
     }
     else if(strcmp(subtype, "i8") == 0){
         if(withOper){
@@ -601,7 +613,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             vari->val = 0;
         }
-        strncpy(vars[varLen-1].type, "int", 51);
+        vars[varLen-1].type = KW_INT;
     }
     else if(strcmp(subtype, "double") == 0){
         if(withOper){
@@ -610,7 +622,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             vari->val = 0.0;
         }
-        strncpy(vars[varLen-1].type, "float", 51);
+        vars[varLen-1].type = KW_FLOAT;
     }
     else if(strcmp(subtype, "float") == 0){
         if(withOper){
@@ -619,7 +631,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             vari->val = 0.0;
         }
-        strncpy(vars[varLen-1].type, "float", 51);
+        vars[varLen-1].type = KW_FLOAT;
     }
     else if(strcmp(subtype, "ldob") == 0){
         if(withOper){
@@ -628,7 +640,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             vari->val = 0.0;
         }
-        strncpy(vars[varLen-1].type, "float", 51);
+        vars[varLen-1].type = KW_FLOAT;
     }
     else if(strcmp(subtype, "long") == 0){
         if(withOper){
@@ -637,7 +649,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             vari->val = 0;
         }
-        strncpy(vars[varLen-1].type, "int", 51);
+        vars[varLen-1].type = KW_INT;
     }
     else if(strcmp(subtype, "llong") == 0){
         if(withOper){
@@ -646,7 +658,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             vari->val = 0;
         }
-        strncpy(vars[varLen-1].type, "int", 51);
+        vars[varLen-1].type = KW_INT;
     }
     else if(strcmp(subtype, "int") == 0){
         if(withOper){
@@ -655,7 +667,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             vari->val = 0;
         }
-        strncpy(vars[varLen-1].type, "int", 51);
+        vars[varLen-1].type = KW_INT;
     }
     else if(strcmp(subtype, "si") == 0){
         if(withOper){
@@ -664,7 +676,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             vari->val = 0;
         }
-        strncpy(vars[varLen-1].type, "int", 51);
+        vars[varLen-1].type = KW_INT;
     }
     else if(strcmp(subtype, "ui") == 0){
         if(withOper){
@@ -673,7 +685,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             vari->val = 0;
         }
-        strncpy(vars[varLen-1].type, "int", 51);
+        vars[varLen-1].type = KW_INT;
     }
     else if(strcmp(subtype, "u64") == 0){
         if(withOper){
@@ -682,7 +694,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             vari->val = 0;
         }
-        strncpy(vars[varLen-1].type, "int", 51);
+        vars[varLen-1].type = KW_INT;
     }
     else if(strcmp(subtype, "i64") == 0){
         if(withOper){
@@ -691,7 +703,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             vari->val = 0;
         }
-        strncpy(vars[varLen-1].type, "int", 51);
+        vars[varLen-1].type = KW_INT;
     }
     else if(strcmp(subtype, "mut") == 0){
         if(withOper){
@@ -699,12 +711,12 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
             valu val;
             bool vv = getValue(pos+3, &pos, &val, false);
             strncpy(vars[varLen-1].value, val.value, 101);
-            strncpy(vars[varLen-1].type, val.type, 51);
+            vars[varLen-1].type = val.type;
             vari->val = val.val;
         }
         else{
             strncpy(vars[varLen-1].value, "", 101);
-            strncpy(vars[varLen-1].type, "null", 51);
+            vars[varLen-1].type = KW_UNDEF;
             vari->val = 0;
         }
     }
@@ -715,7 +727,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             strncpy(vari->value, "", 1);
         }
-        strncpy(vars[varLen-1].type, "char", 51);
+        vars[varLen-1].type = KW_CHAR;
     }
     else if(strcmp(subtype, "uc") == 0){
         if(withOper){
@@ -724,7 +736,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             strncpy(vari->value, "", 1);
         }
-        strncpy(vars[varLen-1].type, "char", 51);
+        vars[varLen-1].type = KW_CHAR;
     }
     else if(strcmp(subtype, "char") == 0){
         if(withOper){
@@ -733,7 +745,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             strncpy(vari->value, "", 1);
         }
-        strncpy(vars[varLen-1].type, "char", 51);
+        vars[varLen-1].type = KW_CHAR;
     }
     else if(strcmp(subtype, "str") == 0){
         if(withOper){
@@ -742,7 +754,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
         else{
             strncpy(vari->value, "", 1);
         }
-        strncpy(vars[varLen-1].type, "char", 51);
+        vars[varLen-1].type = KW_STRING;
     }
     else{
 
@@ -756,7 +768,7 @@ bool calculateSubtype(char *subtype, var* vari, int pos, int* posi, bool pasteSu
 bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int bracketsDepthToDelete, char *pretype, bool isF){
     if(withKeyword){
         bool isCustomKW = false;
-        if(tokLen > pos+1 && (strcmp(tokens[pos+1].type, "keyword_custom") == 0 || strcmp(tokens[pos+1].type, "function_custom") == 0)){
+        if(tokLen > pos+1 && (tokens[pos+1].type == KW_KEY_CUSTOM || tokens[pos+1].type == KW_FUN_CUSTOM)){
             isCustomKW = true;
         }
         if(!isCustomKW){
@@ -767,7 +779,7 @@ bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int brackets
                 return false;
             }
             err_start(SYNTAX_ERROR);
-            printf("Unexpected token %s, expected variable name ", tokens[pos+1].type);
+            printf("Unexpected token %s, expected variable name ", tokens[pos+1].value);
             err_end(tokens[pos+1].line);
             return false;
         }
@@ -778,7 +790,7 @@ bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int brackets
     bool isEqAdd = false;
     bool isEqSub = false;
     bool isOper = false;
-    if(tokLen > pos+2 && strcmp(tokens[pos+2].type, "operator") == 0){
+    if(tokLen > pos+2 && tokens[pos+2].type == KW_OPERATOR){
         if(strcmp(tokens[pos+2].value, "eq") == 0){
             isEq = true;
             isOper = true;
@@ -840,12 +852,12 @@ bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int brackets
         if(isOper){
             bool vv = getValue(pos+3, &pos, &val, false);
             strncpy(vars[varLen-1].value, val.value, 101);
-            strncpy(vars[varLen-1].type, val.type, 51);
+            vars[varLen-1].type = val.type;
             vars[varLen-1].val = val.val;
         }
         else{
             strncpy(vars[varLen-1].value, "", 2);
-            strncpy(vars[varLen-1].type, "null", 51);
+            vars[varLen-1].type = KW_UNDEF;
             vars[varLen-1].val = 0;
         }
     }
@@ -861,11 +873,11 @@ bool createVar(int pos, int *posi, bool withKeyword, char *subtype, int brackets
         int brAc = 1;
         while (pos < tokLen)
         {
-            if(strcmp(tokens[pos].type, "bracket)") == 0){
+            if(tokens[pos].type == KW_BRACKET_ROUNDED_CLOSED){
                 brAc--;
                 pos++;
             }
-            if(strcmp(tokens[pos].type, "keyword") == 0 && strcmp(tokens[pos].value, "var") == 0){
+            if(tokens[pos].type == KW_KEY && strcmp(tokens[pos].value, "var") == 0){
                 bool b = createVar(pos, &pos, true, NULL, openedBracketsShaped-2, NULL, false);
                 if(!b){
                     return false;
@@ -1000,7 +1012,7 @@ void tokenize(char* code){
             tokLen++;
             //strcpy(tokens[tokLen-1].type, "");
             //strcpy(tokens[tokLen-1].value, "");
-            strncpy(tokens[tokLen-1].type, "string", 8);
+            tokens[tokLen-1].type = KW_STRING;
             strncpy(tokens[tokLen-1].value, res, 101);
             tokens[tokLen-1].line = line;
             
@@ -1038,7 +1050,7 @@ void tokenize(char* code){
             tokLen++;
             //strcpy(tokens[tokLen-1].type, "");
             //strcpy(tokens[tokLen-1].value, "");
-            strncpy(tokens[tokLen-1].type, "char", 8);
+            tokens[tokLen-1].type = KW_CHAR;
             strncpy(tokens[tokLen-1].value, &res, 1);
             tokens[tokLen-1].line = line;
         }
@@ -1047,7 +1059,7 @@ void tokenize(char* code){
             if(code[pos] == '+'){
                 tokens = realloc(tokens, (tokLen+1)*sizeof(token));
                 tokLen++;
-                strncpy(tokens[tokLen-1].type, "operator", 15);
+                tokens[tokLen-1].type = KW_OPERATOR;
                 strncpy(tokens[tokLen-1].value, "++", 5);
                 tokens[tokLen-1].line = line;
                 pos++;
@@ -1055,7 +1067,7 @@ void tokenize(char* code){
             else if(code[pos] == '='){
                 tokens = realloc(tokens, (tokLen+1)*sizeof(token));
                 tokLen++;
-                strncpy(tokens[tokLen-1].type, "operator", 15);
+                tokens[tokLen-1].type = KW_OPERATOR;
                 strncpy(tokens[tokLen-1].value, "+=", 5);
                 tokens[tokLen-1].line = line;
                 pos++;
@@ -1063,7 +1075,7 @@ void tokenize(char* code){
             else{
                 tokens = realloc(tokens, (tokLen+1)*sizeof(token));
                 tokLen++;
-                strncpy(tokens[tokLen-1].type, "operator", 15);
+                tokens[tokLen-1].type = KW_OPERATOR;
                 strncpy(tokens[tokLen-1].value, "add", 5);
                 tokens[tokLen-1].line = line;
             }
@@ -1072,7 +1084,7 @@ void tokenize(char* code){
             
             tokens = realloc(tokens, (tokLen+1)*sizeof(token));
             tokLen++;
-            strncpy(tokens[tokLen-1].type, "operator", 15);
+            tokens[tokLen-1].type = KW_OPERATOR;
             strncpy(tokens[tokLen-1].value, "sub", 5);
             tokens[tokLen-1].line = line;
             pos++;
@@ -1080,42 +1092,42 @@ void tokenize(char* code){
         else if(currentChar == '('){
             tokens = realloc(tokens, (tokLen+1)*sizeof(token));
             tokLen++;
-            strncpy(tokens[tokLen-1].type, "bracket(", 15);
+            tokens[tokLen-1].type = KW_BRACKET_ROUNDED_OPENED;
             tokens[tokLen-1].line = line;
             pos++;
         }
         else if(currentChar == ')'){
             tokens = realloc(tokens, (tokLen+1)*sizeof(token));
             tokLen++;
-            strncpy(tokens[tokLen-1].type, "bracket)", 15);
+            tokens[tokLen-1].type = KW_BRACKET_ROUNDED_CLOSED;
             tokens[tokLen-1].line = line;
             pos++;
         }
         else if(currentChar == '['){
             tokens = realloc(tokens, (tokLen+1)*sizeof(token));
             tokLen++;
-            strncpy(tokens[tokLen-1].type, "bracket[", 15);
+            tokens[tokLen-1].type = KW_BRACKET_SQUARED_OPENED;
             tokens[tokLen-1].line = line;
             pos++;
         }
         else if(currentChar == ']'){
             tokens = realloc(tokens, (tokLen+1)*sizeof(token));
             tokLen++;
-            strncpy(tokens[tokLen-1].type, "bracket]", 15);
+            tokens[tokLen-1].type = KW_BRACKET_SQUARED_CLOSED;
             tokens[tokLen-1].line = line;
             pos++;
         }
         else if(currentChar == '{'){
             tokens = realloc(tokens, (tokLen+1)*sizeof(token));
             tokLen++;
-            strncpy(tokens[tokLen-1].type, "bracket{", 15);
+            tokens[tokLen-1].type = KW_BRACKET_SHAPED_OPENED;
             tokens[tokLen-1].line = line;
             pos++;
         }
         else if(currentChar == '}'){
             tokens = realloc(tokens, (tokLen+1)*sizeof(token));
             tokLen++;
-            strncpy(tokens[tokLen-1].type, "bracket}", 15);
+            tokens[tokLen-1].type = KW_BRACKET_SHAPED_CLOSED;
             tokens[tokLen-1].line = line;
             pos++;
         }
@@ -1187,17 +1199,17 @@ void tokenize(char* code){
                 if(digitsAfterDot == 0){
                     char ze[2] = "0";
                     strncat(res, &ze[0], 1);
-                    strncpy(tokens[tokLen-1].type, "float", 8);
+                    tokens[tokLen-1].type = KW_FLOAT;
                     tokens[tokLen-1].val = strtold(res, NULL);
                 }
                 else{
-                    strncpy(tokens[tokLen-1].type, "float", 8);
+                    tokens[tokLen-1].type = KW_FLOAT;
                     tokens[tokLen-1].val = strtold(res, NULL);
                 }
                 
             }
             else{
-                strncpy(tokens[tokLen-1].type, "int", 5);
+                tokens[tokLen-1].type = KW_INT;
                 tokens[tokLen-1].val = strtold(res, NULL);
                 // if(pos < length){
                 //     //printf("Hello\n");
@@ -1300,14 +1312,14 @@ void tokenize(char* code){
                 //tokens[tokLen-1].value = calloc(1,1);
                 tokens[tokLen-1].line = line;
                 if(isInclude){
-                    strncpy(tokens[tokLen-1].type, "keyword", 10);
+                    tokens[tokLen-1].type = KW_KEY;
                 }
                 else{
                     if(isStatement){
-                        strncpy(tokens[tokLen-1].type, "statement", 15);
+                        tokens[tokLen-1].type = KW_STATEMENT;
                     }
                     else if(!isFunc){
-                        strncpy(tokens[tokLen-1].type, "keyword_custom", 20);
+                        tokens[tokLen-1].type = KW_KEY_CUSTOM;
                     }
                     else{
                         isInclude = false;
@@ -1318,10 +1330,10 @@ void tokenize(char* code){
                             }
                         }
                         if(isInclude){
-                            strncpy(tokens[tokLen-1].type, "function", 11);
+                            tokens[tokLen-1].type = KW_FUN;
                         }
                         else{
-                            strncpy(tokens[tokLen-1].type, "function_custom", 20);
+                            tokens[tokLen-1].type = KW_FUN_CUSTOM;
                         }
                         
                     }
@@ -1335,7 +1347,7 @@ void tokenize(char* code){
                     else{
                         tokens = malloc(sizeof(token));
                     }
-                    strncpy(tokens[tokLen-1].type, "bracket(", 15);
+                    tokens[tokLen-1].type = KW_BRACKET_ROUNDED_OPENED;
                 }
                 if(brackets == 1){
                     tokLen++;
@@ -1345,7 +1357,7 @@ void tokenize(char* code){
                     else{
                         tokens = malloc(sizeof(token));
                     }
-                    strncpy(tokens[tokLen-1].type, "bracket[", 15);
+                    tokens[tokLen-1].type = KW_BRACKET_SQUARED_OPENED;
                 }
                 else if(brackets == 2){
                     tokLen++;
@@ -1355,7 +1367,7 @@ void tokenize(char* code){
                     else{
                         tokens = malloc(sizeof(token));
                     }
-                    strncpy(tokens[tokLen-1].type, "bracket{", 15);
+                    tokens[tokLen-1].type = KW_BRACKET_SHAPED_OPENED;
                 }
                 // else if(brackets == 3){
                 //     tokens = realloc(tokens, (tokLen+1)*sizeof(token));
@@ -1400,7 +1412,7 @@ void tokenize(char* code){
                     //tokens[tokLen-1].type = calloc(1,1);
                     //tokens[tokLen-1].value = calloc(1,1);
                     tokLen++;
-                    strncpy(tokens[tokLen-1].type, "operator", 15);
+                    tokens[tokLen-1].type = KW_OPERATOR;
                     strncpy(tokens[tokLen-1].value, "/", 6);
                     tokens[tokLen-1].line = line;
                 }
@@ -1418,7 +1430,7 @@ void tokenize(char* code){
                     //tokens[tokLen-1].type = calloc(1,1);
                     //tokens[tokLen-1].value = calloc(1,1);
                     tokLen++;
-                    strncpy(tokens[tokLen-1].type, "operator", 15);
+                    tokens[tokLen-1].type = KW_OPERATOR;
                     strncpy(tokens[tokLen-1].value, "eq", 5);
                     tokens[tokLen-1].line = line;
                 }
@@ -1434,7 +1446,7 @@ void tokenize(char* code){
                     //tokens[tokLen-1].type = calloc(1,1);
                     //tokens[tokLen-1].value = calloc(1,1);
                     tokLen++;
-                    strncpy(tokens[tokLen-1].type, "operator", 15);
+                    tokens[tokLen-1].type = KW_OPERATOR;
                     strncpy(tokens[tokLen-1].value, "==", 6);
                     tokens[tokLen-1].line = line;
                 }
@@ -1454,7 +1466,7 @@ void tokenize(char* code){
                     //tokens[tokLen-1].type = calloc(1,1);
                     //tokens[tokLen-1].value = calloc(1,1);
                     tokLen++;
-                    strncpy(tokens[tokLen-1].type, "operator", 15);
+                    tokens[tokLen-1].type = KW_OPERATOR;
                     strncpy(tokens[tokLen-1].value, ">=", 6);
                     tokens[tokLen-1].line = line;
                 }
@@ -1468,7 +1480,7 @@ void tokenize(char* code){
                     //tokens[tokLen-1].type = calloc(1,1);
                     //tokens[tokLen-1].value = calloc(1,1);
                     tokLen++;
-                    strncpy(tokens[tokLen-1].type, "operator", 15);
+                    tokens[tokLen-1].type = KW_OPERATOR;
                     strncpy(tokens[tokLen-1].value, ">", 6);
                     tokens[tokLen-1].line = line;
                 }
@@ -1488,7 +1500,7 @@ void tokenize(char* code){
                     //tokens[tokLen-1].type = calloc(1,1);
                     //tokens[tokLen-1].value = calloc(1,1);
                     tokLen++;
-                    strncpy(tokens[tokLen-1].type, "operator", 15);
+                    tokens[tokLen-1].type = KW_OPERATOR;
                     strncpy(tokens[tokLen-1].value, "<=", 6);
                     tokens[tokLen-1].line = line;
                 }
@@ -1502,7 +1514,7 @@ void tokenize(char* code){
                     //tokens[tokLen-1].type = calloc(1,1);
                     //tokens[tokLen-1].value = calloc(1,1);
                     tokLen++;
-                    strncpy(tokens[tokLen-1].type, "operator", 15);
+                    tokens[tokLen-1].type = KW_OPERATOR;
                     strncpy(tokens[tokLen-1].value, "<", 6);
                     tokens[tokLen-1].line = line;
                 }
@@ -1522,7 +1534,7 @@ void tokenize(char* code){
                     //tokens[tokLen-1].type = calloc(1,1);
                     //tokens[tokLen-1].value = calloc(1,1);
                     tokLen++;
-                    strncpy(tokens[tokLen-1].type, "operator", 15);
+                    tokens[tokLen-1].type = KW_OPERATOR;
                     strncpy(tokens[tokLen-1].value, "!=", 6);
                     tokens[tokLen-1].line = line;
                 }
@@ -1536,7 +1548,7 @@ void tokenize(char* code){
                     //tokens[tokLen-1].type = calloc(1,1);
                     //tokens[tokLen-1].value = calloc(1,1);
                     tokLen++;
-                    strncpy(tokens[tokLen-1].type, "operator", 15);
+                    tokens[tokLen-1].type = KW_OPERATOR;
                     strncpy(tokens[tokLen-1].value, "!", 3);
                     tokens[tokLen-1].line = line;
                 }
@@ -1556,7 +1568,7 @@ void tokenize(char* code){
                     //tokens[tokLen-1].type = calloc(1,1);
                     //tokens[tokLen-1].value = calloc(1,1);
                     tokLen++;
-                    strncpy(tokens[tokLen-1].type, "operator", 15);
+                    tokens[tokLen-1].type = KW_OPERATOR;
                     strncpy(tokens[tokLen-1].value, "&&", 6);
                     tokens[tokLen-1].line = line;
                 }
@@ -1576,7 +1588,7 @@ void tokenize(char* code){
                     //tokens[tokLen-1].type = calloc(1,1);
                     //tokens[tokLen-1].value = calloc(1,1);
                     tokLen++;
-                    strncpy(tokens[tokLen-1].type, "operator", 15);
+                    tokens[tokLen-1].type = KW_OPERATOR;
                     strncpy(tokens[tokLen-1].value, "||", 6);
                     tokens[tokLen-1].line = line;
                 }
@@ -1607,10 +1619,10 @@ bool parse(){
     int loopsTo = 0;
     argument arg[MAX_ARGS];
     while(pos<len){
-        if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "else") == 0){
+        if(tokens[pos].type == KW_STATEMENT && strcmp(tokens[pos].value, "else") == 0){
             pos++;
             if(lastArg == ARG_FALSE){
-                if(strcmp(tokens[pos+1].type, "bracket{") == 0){
+                if(tokens[pos+1].type == KW_BRACKET_SHAPED_OPENED){
                     lastArg = ARG_UNDEFINED;
                     openedBracketsShaped++;
                     pos++;
@@ -1619,15 +1631,15 @@ bool parse(){
                 }
             }
             else if(lastArg == ARG_TRUE){
-                if(strcmp(tokens[pos].type, "bracket{") == 0){
+                if(tokens[pos+1].type == KW_BRACKET_SHAPED_OPENED){
                     int bracketsS = 1;
                     lastArg = ARG_UNDEFINED;
                     pos++;
                     while(pos < tokLen && bracketsS > 0){
-                        if(strcmp(tokens[pos].type, "bracket{") == 0){
+                        if(tokens[pos].type == KW_BRACKET_SHAPED_OPENED){
                             bracketsS++;
                         }
-                        else if(strcmp(tokens[pos].type, "bracket}") == 0){
+                        else if(tokens[pos].type == KW_BRACKET_SHAPED_CLOSED){
                             bracketsS--;
                         }
                         pos++;
@@ -1643,7 +1655,7 @@ bool parse(){
                 return false;
             }
         }
-        else if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "elif") == 0){
+        else if(tokens[pos].type == KW_STATEMENT && strcmp(tokens[pos].value, "elif") == 0){
             if(lastArg == ARG_FALSE){
                 if(tokLen <= pos+1){
                     err_start(SYNTAX_ERROR);
@@ -1651,7 +1663,7 @@ bool parse(){
                     err_end(tokens[pos].line);
                     return false;
                 }
-                if(strcmp(tokens[pos+1].type, "bracket(") != 0){
+                if(tokens[pos+1].type != KW_BRACKET_ROUNDED_OPENED){
                     err_start(SYNTAX_ERROR);
                     printf("Unexpected statement start, expected ( ");
                     err_end(tokens[pos].line);
@@ -1669,15 +1681,15 @@ bool parse(){
                 //arg[argsCount-1].isNeeded = true;
                 arg[argsCount-1].isTrue = getArgument(pos, &pos);
                 while(brackets > 0 && tokLen > pos){
-                    if(strcmp(tokens[pos].type, "bracket(") == 0){
+                    if(tokens[pos].type == KW_BRACKET_ROUNDED_OPENED){
                         brackets++;
                         pos++;
                     }
-                    else if(strcmp(tokens[pos].type,"bracket)") == 0){
+                    else if(tokens[pos].type == KW_BRACKET_ROUNDED_CLOSED){
                         brackets--;
                         pos++;
                     }
-                    if(strcmp(tokens[pos].type, "operator") == 0){
+                    if(tokens[pos].type == KW_OPERATOR){
                         if(strcmp(tokens[pos].value, "&&") == 0){
                             arg[argsCount].isTrue = getArgument(pos+1, &pos);
                             arg[argsCount].isNeeded = true;
@@ -1736,7 +1748,7 @@ bool parse(){
                     result = true;
                 }
                 if(result == true){
-                    if(strcmp(tokens[pos].type, "bracket{") == 0){
+                    if(tokens[pos].type == KW_BRACKET_SHAPED_OPENED){
                         lastArg = ARG_TRUE;
                         isInIf=1;
                         bracketsToEndIf = openedBracketsShaped;
@@ -1746,15 +1758,15 @@ bool parse(){
                     }
                 }
                 else{
-                    if(strcmp(tokens[pos].type, "bracket{") == 0){
+                    if(tokens[pos].type == KW_BRACKET_SHAPED_CLOSED){
                         int bracketsS = 1;
                         lastArg = ARG_FALSE;
                         pos++;
                         while(pos < tokLen && bracketsS > 0){
-                            if(strcmp(tokens[pos].type, "bracket{") == 0){
+                            if(tokens[pos].type == KW_BRACKET_SHAPED_OPENED){
                                 bracketsS++;
                             }
-                            else if(strcmp(tokens[pos].type, "bracket}") == 0){
+                            else if(tokens[pos].type == KW_BRACKET_SHAPED_CLOSED){
                                 bracketsS--;
                             }
                             pos++;
@@ -1771,7 +1783,7 @@ bool parse(){
                     err_end(tokens[pos].line);
                     return false;
                 }
-                if(strcmp(tokens[pos+1].type, "bracket(") != 0){
+                if(tokens[pos+1].type != KW_BRACKET_ROUNDED_OPENED){
                     err_start(SYNTAX_ERROR);
                     printf("Unexpected statement start, expected ( ");
                     err_end(tokens[pos].line);
@@ -1787,23 +1799,23 @@ bool parse(){
                 int brackets = 1;
                 int argsCount = 1;
                 while(brackets > 0 && tokLen > pos){
-                    if(strcmp(tokens[pos].type, "bracket(") == 0){
+                    if(tokens[pos].type == KW_BRACKET_ROUNDED_OPENED){
                         brackets++;
                     }
-                    else if(strcmp(tokens[pos].type,"bracket)") == 0){
+                    else if(tokens[pos].type == KW_BRACKET_ROUNDED_CLOSED){
                         brackets--;
                     }
                     pos++;
                 }
-                if(strcmp(tokens[pos].type, "bracket{") == 0){
+                if(tokens[pos].type == KW_BRACKET_SHAPED_OPENED){
                     int bracketsS = 1;
                     lastArg = ARG_TRUE;
                     pos++;
                     while(pos < tokLen && bracketsS > 0){
-                        if(strcmp(tokens[pos].type, "bracket{") == 0){
+                        if(tokens[pos].type == KW_BRACKET_SHAPED_OPENED){
                             bracketsS++;
                         }
-                        else if(strcmp(tokens[pos].type, "bracket}") == 0){
+                        else if(tokens[pos].type == KW_BRACKET_SHAPED_CLOSED){
                             bracketsS--;
                         }
                         pos++;
@@ -1825,7 +1837,7 @@ bool parse(){
             isInIf = 5;
         }
         //-------------------print--------------------
-        if(strncmp(tokens[pos].type, "function", 9) == 0 && strncmp(tokens[pos].value, "print", 6) == 0 || strncmp(tokens[pos].value, "println", 6) == 0){
+        if(tokens[pos].type == KW_FUN && strncmp(tokens[pos].value, "print", 6) == 0 || strncmp(tokens[pos].value, "println", 6) == 0){
             if(build == false){
                 int p = pos;
                 if(tokLen <= pos+1){
@@ -1849,20 +1861,20 @@ bool parse(){
                     err_end(tokens[p+2].line);
                     return false;
                 }
-                if(strcmp(tokens[pos].type, "bracket)") != 0){
+                if(tokens[pos].type != KW_BRACKET_ROUNDED_CLOSED){
                     err_start(SYNTAX_ERROR);
                     printf("Unexpected end of function print, expected ) ");
                     err_end(tokens[pos].line);
                     return false;
                 }
-                if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
+                if(val.type == KW_STRING || val.type == KW_CHAR){
                     printf("%s", val.value);
                 }
-                else if(strcmp(val.type, "int") == 0 || strcmp(val.type, "float") == 0){
+                else if(val.type == KW_INT || val.type == KW_FLOAT){
                     printf("%Lg", val.val);
                 }
-                else if(strcmp(val.type, "null") == 0){
-                    printf("nulltype");
+                else if(val.type == KW_UNDEF){
+                    printf("");
                 }
                 if(strcmp(tokens[p].value, "println") == 0){
                     printf("\n");
@@ -1903,7 +1915,7 @@ bool parse(){
                 }
             }   
         }
-        else if(strcmp(tokens[pos].type, "function_custom") == 0){
+        else if(tokens[pos].type == KW_FUN_CUSTOM){
             int p = pos;
             if(tokLen <= pos+1){
                 err_start(SYNTAX_ERROR);
@@ -1953,7 +1965,7 @@ bool parse(){
             }
         }
         //----------------------if statement--------------------------
-        else if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "if") == 0){
+        else if(tokens[pos].type == KW_STATEMENT && strcmp(tokens[pos].value, "if") == 0){
             lastArg = ARG_UNDEFINED;
             if(tokLen <= pos+1){
                 err_start(SYNTAX_ERROR);
@@ -1961,7 +1973,7 @@ bool parse(){
                 err_end(tokens[pos].line);
                 return false;
             }
-            if(strcmp(tokens[pos+1].type, "bracket(") != 0){
+            if(tokens[pos+1].type != KW_BRACKET_ROUNDED_OPENED){
                 err_start(SYNTAX_ERROR);
                 printf("Unexpected statement start, expected ( ");
                 err_end(tokens[pos].line);
@@ -1979,15 +1991,15 @@ bool parse(){
             //arg[argsCount-1].isNeeded = true;
             arg[argsCount-1].isTrue = getArgument(pos, &pos);
             while(brackets > 0 && tokLen > pos){
-                if(strcmp(tokens[pos].type, "bracket(") == 0){
+                if(tokens[pos].type == KW_BRACKET_ROUNDED_OPENED){
                     brackets++;
                     pos++;
                 }
-                else if(strcmp(tokens[pos].type,"bracket)") == 0){
+                else if(tokens[pos].type == KW_BRACKET_ROUNDED_CLOSED){
                     brackets--;
                     pos++;
                 }
-                if(strcmp(tokens[pos].type, "operator") == 0){
+                if(tokens[pos].type == KW_OPERATOR){
                     if(strcmp(tokens[pos].value, "&&") == 0){
                         arg[argsCount].isTrue = getArgument(pos+1, &pos);
                         arg[argsCount].isNeeded = true;
@@ -2046,7 +2058,7 @@ bool parse(){
                 result = true;
             }
             if(result == true){
-                if(strcmp(tokens[pos].type, "bracket{") == 0){
+                if(tokens[pos].type == KW_BRACKET_SHAPED_OPENED){
                     lastArg = ARG_TRUE;
                     isInIf=1;
                     bracketsToEndIf = openedBracketsShaped;
@@ -2057,15 +2069,15 @@ bool parse(){
                 
             }
             else{
-                if(strcmp(tokens[pos].type, "bracket{") == 0){
+                if(tokens[pos].type == KW_BRACKET_SHAPED_OPENED){
                     int bracketsS = 1;
                     lastArg = ARG_FALSE;
                     pos++;
                     while(pos < tokLen && bracketsS > 0){
-                        if(strcmp(tokens[pos].type, "bracket{") == 0){
+                        if(tokens[pos].type == KW_BRACKET_SHAPED_OPENED){
                             bracketsS++;
                         }
-                        else if(strcmp(tokens[pos].type, "bracket}") == 0){
+                        else if(tokens[pos].type == KW_BRACKET_SHAPED_CLOSED){
                             bracketsS--;
                         }
                         pos++;
@@ -2075,7 +2087,7 @@ bool parse(){
             }
             
         }
-        else if(strcmp(tokens[pos].type, "bracket}") == 0){
+        else if(tokens[pos].type == KW_BRACKET_SHAPED_CLOSED){
             if(openedBracketsShaped > 0){
                 openedBracketsShaped--;
                 if(isInIf == 1 && bracketsToEndIf == openedBracketsShaped){
@@ -2094,7 +2106,7 @@ bool parse(){
             }
             pos++;
         }
-        else if(strcmp(tokens[pos].type, "bracket)") == 0){
+        else if(tokens[pos].type == KW_BRACKET_ROUNDED_CLOSED){
             if(openedBracketsRound > 0){
                 openedBracketsRound--;
             }
@@ -2105,7 +2117,7 @@ bool parse(){
             }
             pos++;
         }
-        else if(strcmp(tokens[pos].type, "bracket]") == 0){
+        else if(tokens[pos].type == KW_BRACKET_SQUARED_CLOSED){
             if(openedBracketsSquare > 0){
                 openedBracketsSquare--;
             }
@@ -2116,27 +2128,27 @@ bool parse(){
             }
             pos++;
         }
-        else if(strcmp(tokens[pos].type, "bracket{") == 0){
+        else if(tokens[pos].type == KW_BRACKET_SHAPED_OPENED){
             openedBracketsShaped++;
             pos++;
         }
-        else if(strcmp(tokens[pos].type, "bracket(") == 0){
+        else if(tokens[pos].type == KW_BRACKET_ROUNDED_OPENED){
             openedBracketsRound++;
             pos++;
         }
-        else if(strcmp(tokens[pos].type, "bracket[") == 0){
+        else if(tokens[pos].type == KW_BRACKET_SQUARED_OPENED){
             openedBracketsSquare++;
             pos++;
         }
         //-------------------var--------------------
-        else if(strcmp(tokens[pos].type, "keyword") == 0 && strcmp(tokens[pos].value, "var") == 0){
+        else if(tokens[pos].type == KW_KEY && strcmp(tokens[pos].value, "var") == 0){
             bool b = createVar(pos, &pos, true, NULL, openedBracketsShaped-1, NULL, false);
             if(!b){
                 return false;
             }
         }
         //---------------while loop--------------------------
-        else if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "while") == 0){
+        else if(tokens[pos].type == KW_STATEMENT && strcmp(tokens[pos].value, "while") == 0){
             int p = pos;
             if(tokLen <= pos+1){
                 err_start(SYNTAX_ERROR);
@@ -2144,7 +2156,7 @@ bool parse(){
                 err_end(tokens[pos].line);
                 return false;
             }
-            if(strcmp(tokens[pos+1].type, "bracket(") != 0){
+            if(tokens[pos+1].type != KW_BRACKET_ROUNDED_OPENED){
                 err_start(SYNTAX_ERROR);
                 printf("Unexpected loop start, expected ( ");
                 err_end(tokens[pos].line);
@@ -2162,15 +2174,15 @@ bool parse(){
             //arg[argsCount-1].isNeeded = true;
             arg[argsCount-1].isTrue = getArgument(pos, &pos);
             while(brackets > 0 && tokLen > pos){
-                if(strcmp(tokens[pos].type, "bracket(") == 0){
+                if(tokens[pos].type == KW_BRACKET_ROUNDED_OPENED){
                     brackets++;
                     pos++;
                 }
-                else if(strcmp(tokens[pos].type,"bracket)") == 0){
+                else if(tokens[pos].type == KW_BRACKET_ROUNDED_CLOSED){
                     brackets--;
                     pos++;
                 }
-                if(strcmp(tokens[pos].type, "operator") == 0){
+                if(tokens[pos].type == KW_OPERATOR){
                     if(strcmp(tokens[pos].value, "&&") == 0){
                         arg[argsCount].isTrue = getArgument(pos+1, &pos);
                         arg[argsCount].isNeeded = true;
@@ -2229,7 +2241,7 @@ bool parse(){
                 result = true;
             }
             if(result == true){
-                if(strcmp(tokens[pos].type, "bracket{") == 0){
+                if(tokens[pos].type == KW_BRACKET_SHAPED_OPENED){
                     loops[loopsTo].pos = p;
                     loops[loopsTo].bracketsShaped = openedBracketsShaped;
                     loopsTo++;
@@ -2240,15 +2252,15 @@ bool parse(){
                 
             }
             else{
-                if(strcmp(tokens[pos].type, "bracket{") == 0){
+                if(tokens[pos].type == KW_BRACKET_SHAPED_OPENED){
                     int bracketsS = 1;
                     pos++;
                     while(pos < tokLen && bracketsS > 0){
-                        if(strcmp(tokens[pos].type, "bracket{") == 0){
+                        if(tokens[pos].type == KW_BRACKET_SHAPED_OPENED){
                             bracketsS++;
                             pos++;
                         }
-                        else if(strcmp(tokens[pos].type, "bracket}") == 0){
+                        else if(tokens[pos].type == KW_BRACKET_SHAPED_CLOSED){
                             bracketsS--;
                             pos++;
                         }
@@ -2261,15 +2273,15 @@ bool parse(){
             }
         }
         //-----------break---------
-        else if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "break") == 0){
+        else if(tokens[pos].type == KW_STATEMENT && strcmp(tokens[pos].value, "break") == 0){
             int tB = loops[loopsTo-1].bracketsShaped;
             pos++;
             while (pos < tokLen && openedBracketsShaped > tB)
             {
-                if(strcmp(tokens[pos].type, "bracket{") == 0){
+                if(tokens[pos].type == KW_BRACKET_SHAPED_OPENED){
                     openedBracketsShaped++;
                 }
-                else if(strcmp(tokens[pos].type, "bracket}") == 0){
+                else if(tokens[pos].type == KW_BRACKET_SHAPED_CLOSED){
                     openedBracketsShaped--;
                 }
                 pos++;
@@ -2277,14 +2289,14 @@ bool parse(){
             loopsTo--;
         }
         //--------------continue-------------
-        else if(strcmp(tokens[pos].type, "statement") == 0 && strcmp(tokens[pos].value, "continue") == 0){
+        else if(tokens[pos].type == KW_STATEMENT && strcmp(tokens[pos].value, "continue") == 0){
             loopsTo--;
             pos = loops[loopsTo].pos;
             continue;
         }
         //-------------------all keywords-------------------
-        else if(strcmp(tokens[pos].type, "keyword") == 0){
-            if(strcmp(tokens[pos+1].type, "keyword_custom") == 0){
+        else if(tokens[pos].type == KW_KEY){
+            if(tokens[pos+1].type == KW_KEY_CUSTOM){
                 if(strcmp(varT, "") == 0){
                     bool b = createVar(pos, &pos, true, tokens[pos].value, openedBracketsShaped-1, NULL, false);
                     if(!b){
@@ -2299,7 +2311,7 @@ bool parse(){
                     }
                 }
             }
-            else if(strcmp(tokens[pos+1].type, "function_custom") == 0){
+            else if(tokens[pos+1].type == KW_FUN_CUSTOM){
                 if(strcmp(varT, "") == 0){
                     bool b = createVar(pos, &pos, true, tokens[pos].value, openedBracketsShaped-1, NULL, true);
                     if(!b){
@@ -2316,7 +2328,7 @@ bool parse(){
             }
         }
         //--------var without var word---------------
-        else if(strcmp(tokens[pos].type, "keyword_custom") == 0){
+        else if(tokens[pos].type == KW_KEY_CUSTOM){
             printf(" \b"); // ERROR WITHOUT THIS(IDK WHY)
             bool exists = false;
             int index = 0;
@@ -2331,7 +2343,7 @@ bool parse(){
             bool isEq = false;
             if(exists){
                 if(tokLen > pos+2){ 
-                    if(strcmp(tokens[pos+1].type, "operator") == 0){
+                    if(tokens[pos+1].type == KW_OPERATOR){
                         if(strcmp(tokens[pos+1].value, "eq") == 0){
                             if(strcmp(vars[index].subtype, "") == 0 || vars[index].subtype == NULL || strcmp(vars[index].subtype, "mut") == 0 || strcmp(vars[index].subtype, "ft\\eq") == 0){
                                 if(strcmp(vars[index].subtype, "mut") == 0){
@@ -2341,7 +2353,7 @@ bool parse(){
                                         printf("Error getting value\n");
                                         err_end(tokens[pos].line);
                                     }
-                                    strcpy(vars[index].type, val.type);
+                                    vars[index].type = val.type;
                                     vars[index].val = val.val;
                                     strcpy(vars[index].value, val.value);
                                 }
@@ -2352,24 +2364,24 @@ bool parse(){
                                         printf("Error getting value\n");
                                         err_end(tokens[pos].line);
                                     }
-                                    if(strcmp(vars[index].type, "int") == 0 || strcmp(vars[index].type, "float") == 0){
-                                        if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
+                                    if(vars[index].type == KW_INT || vars[index].type == KW_FLOAT){
+                                        if(val.type == KW_STRING || val.type == KW_CHAR){
                                             vars[index].val = strtold(val.value, NULL);
                                         }
                                         else{
                                             vars[index].val = val.val;
                                         }
                                     }
-                                    else if(strcmp(vars[index].type, "string") == 0){
-                                        if(strcmp(val.type, "int") == 0 || strcmp(val.type, "float") == 0){
+                                    else if(vars[index].type == KW_STRING){
+                                        if(val.type == KW_INT || val.type == KW_FLOAT){
                                             sprintf(vars[index].value, "%Lg", val.val);
                                         }
                                         else{
                                             strcpy(vars[index].value, val.value);
                                         }
                                     }
-                                    else if(strcmp(vars[index].type, "char") == 0){
-                                        if(strcmp(val.type, "int") == 0 || strcmp(val.type, "float") == 0){
+                                    else if(vars[index].type == KW_CHAR){
+                                        if(val.type == KW_INT || val.type == KW_FLOAT){
                                             sprintf(vars[index].value, "%Lg", val.val);
                                             strncpy(vars[index].value, vars[index].value, 1);
                                             vars[index].value[1] = '\0';
@@ -2387,16 +2399,16 @@ bool parse(){
                             }
                         }
                         else if(strcmp(tokens[pos+1].value, "++") == 0){
-                            if(strcmp(vars[index].type, "int") == 0 || strcmp(vars[index].type, "float") == 0){
+                            if(vars[index].type == KW_INT || vars[index].type == KW_FLOAT){
                                 vars[index].val++;
                             }
-                            else if(strcmp(vars[index].type, "string") == 0){
+                            else if(vars[index].type == KW_STRING){
                                 err_start(SYNTAX_ERROR);
                                 printf("Unexpected operator ++ for string ");
                                 err_end(tokens[pos+1].line);
                                 return false;
                             }
-                            else if(strcmp(vars[index].type, "char") == 0){
+                            else if(vars[index].type == KW_CHAR){
                                 vars[index].value[0]++;
                             }
                             pos+=2;
@@ -2408,16 +2420,16 @@ bool parse(){
                                 printf("Error getting value\n");
                                 err_end(tokens[pos].line);
                             }
-                            if(strcmp(vars[index].type, "int") == 0 || strcmp(vars[index].type, "float") == 0){
-                                if(strcmp(val.type, "int") == 0 || strcmp(val.type, "float") == 0){
+                            if(vars[index].type == KW_INT || vars[index].type == KW_FLOAT){
+                                if(val.type == KW_INT || val.type == KW_FLOAT){
                                     vars[index].val+= val.val;
                                 }
-                                else if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
+                                else if(val.type == KW_STRING || val.type == KW_FLOAT){
                                     vars[index].val+= strtold(val.value, NULL);
                                 }
                             }
-                            else if(strcmp(vars[index].type, "string") == 0){
-                                if(strcmp(val.type, "string") == 0 || strcmp(val.type, "char") == 0){
+                            else if(vars[index].type == KW_STRING){
+                                if(val.type == KW_STRING || val.type == KW_CHAR){
                                     strcat(vars[index].value, val.value);
                                 }
                                 else{
@@ -2426,13 +2438,13 @@ bool parse(){
                                     strcat(vars[index].value, temp);
                                 }
                             }
-                            else if(strcmp(vars[index].type, "char") == 0){
-                                if(strcmp(val.type, "int") == 0 || strcmp(val.type, "float") == 0){
+                            else if(vars[index].type == KW_CHAR){
+                                if(val.type == KW_INT || val.type == KW_FLOAT){
                                     vars[index].value[0]+=(int)val.val;
                                 }
                                 else{
                                     if(strcmp(vars[index].subtype, "mut") == 0){
-                                        strcpy(vars[index].type, "string");
+                                        vars[index].type = KW_STRING;
                                         strcat(vars[index].value, val.value);
                                     }
                                     else{
@@ -2473,7 +2485,7 @@ bool parse(){
         else{
             if(pos < tokLen){
                 err_start(SYNTAX_ERROR);
-                printf("Unexpected token of type %s ", tokens[pos].type, tokens[pos].value);
+                printf("Unexpected token %s ", tokens[pos].value);
                 err_end(tokens[pos].line);
                 return false;
             }
