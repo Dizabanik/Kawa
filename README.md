@@ -1,3 +1,4 @@
+# MAINTEINED, ALL CODE WAS REWRITTEN
 # Kawa Programming Language
 
 Kawa is a high-performance programming language that supports both compilation and interpretation. With its fast execution speed, it rivals that of C, and also includes web support.
